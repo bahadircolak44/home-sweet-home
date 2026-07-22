@@ -1,13 +1,16 @@
+.gcloudignore
+.git
+.github
+.dockerignore
 .env
-.venv/
+.venv
 gha-creds-*.json
 __pycache__/
 *.py[cod]
-*.sqlite3
 .pytest_cache/
 .ruff_cache/
 .coverage
 htmlcov/
-staticfiles/
-.DS_Store
 *.log
+new-inst.md
+home-sweet-home-agent-prompt copy.md

@@ -1,6 +1,8 @@
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
+from werkzeug.test import EnvironBuilder
+from werkzeug.wrappers import Request
 
 from households.models import Household, HouseholdMembership
 
@@ -35,6 +37,15 @@ class ShoppingFlowTests(TestCase):
         response = self.client.get(reverse("home"))
 
         self.assertRedirects(response, f"{reverse('login')}?next={reverse('home')}")
+
+    def test_cloud_function_entry_point_forwards_requests_to_django(self):
+        from main import home_sweet_home
+
+        request = Request(EnvironBuilder(path="/").get_environ())
+        response = home_sweet_home(request)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.headers["Location"], "/accounts/login/?next=/")
 
     def test_dashboard_and_grocery_module_routes_are_available(self):
         ShoppingItem.objects.create(

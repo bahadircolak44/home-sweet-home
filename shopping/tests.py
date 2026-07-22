@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
@@ -10,6 +11,9 @@ from .models import ShoppingItem, ShoppingList
 
 
 class CloudFunctionEntrypointTests(SimpleTestCase):
+    def test_static_url_does_not_collide_with_functions_framework(self):
+        self.assertFalse(settings.STATIC_URL.startswith("/static/"))
+
     def test_cloud_function_entry_point_forwards_requests_to_django(self):
         from main import home_sweet_home
 

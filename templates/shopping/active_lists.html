@@ -11,6 +11,7 @@
     </div>
     {% if household %}<a class="button button--primary" href="{% url 'shopping:list_create' %}">New List</a>{% endif %}
 </div>
+{% include "shopping/partials/module_nav.html" %}
 
 {% if not household %}
     <section class="empty-state">

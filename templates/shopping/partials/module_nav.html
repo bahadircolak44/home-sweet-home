@@ -1,0 +1,6 @@
+{% with current_url=request.resolver_match.url_name|default:"" %}
+<nav class="module-nav" aria-label="Grocery Lists navigation">
+    <a class="module-nav__link{% if current_url != 'history' and current_url != 'history_detail' %} is-active{% endif %}" href="{% url 'shopping:active_lists' %}">Active Lists</a>
+    <a class="module-nav__link{% if current_url == 'history' or current_url == 'history_detail' %} is-active{% endif %}" href="{% url 'shopping:history' %}">History</a>
+</nav>
+{% endwith %}

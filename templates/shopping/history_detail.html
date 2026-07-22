@@ -1,9 +1,11 @@
 {% extends "base.html" %}
+{% load shopping_extras %}
 
 {% block title %}{{ shopping_list.name }} History · Home Sweet Home{% endblock %}
 
 {% block content %}
 <div class="detail-page">
+    {% include "shopping/partials/module_nav.html" %}
     <a class="back-link" href="{% url 'shopping:history' %}">← History</a>
     <header class="detail-heading history-heading">
         <div class="detail-heading__identity">
@@ -27,8 +29,12 @@
                 {% for item in items %}
                     <article class="history-item{% if item.is_purchased %} history-item--purchased{% endif %}">
                         <span class="check-control" aria-hidden="true">{% if item.is_purchased %}✓{% else %}–{% endif %}</span>
-                        <div>
-                            <p class="history-item__text">{{ item.text }}</p>
+                        <div class="history-item__content">
+                            <div class="history-item__title">
+                                <span class="quantity-badge">{{ item.quantity }}×</span>
+                                <p class="history-item__text">{{ item.text }}</p>
+                            </div>
+                            {% if item.description %}<p class="item-description">{{ item.description|external_urlize|linebreaksbr }}</p>{% endif %}
                             <p class="history-item__meta">Added by {{ item.added_by.get_full_name|default:item.added_by.get_username }}{% if item.is_purchased %} · Purchased by {{ item.purchased_by.get_full_name|default:item.purchased_by.get_username }}{% else %} · Not purchased{% endif %}</p>
                         </div>
                     </article>

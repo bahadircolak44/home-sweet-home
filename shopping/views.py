@@ -1,7 +1,7 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_GET, require_POST
 
 from households.services import get_household_for_user
 
@@ -14,9 +14,11 @@ from .services import (
     complete_list,
     completed_lists_for_user,
     delete_item,
+    grocery_summary_for_user,
     items_for_user,
     lists_for_user,
     toggle_item,
+    update_item,
 )
 
 
@@ -26,12 +28,16 @@ def _is_htmx(request):
 
 def _interaction_context(shopping_list, item_form=None):
     refreshed_list = ShoppingList.objects.with_item_counts().get(pk=shopping_list.pk)
-    remaining_items = refreshed_list.items.filter(is_purchased=False).select_related(
-        "added_by", "purchased_by"
-    ).order_by("created_at")
-    purchased_items = refreshed_list.items.filter(is_purchased=True).select_related(
-        "added_by", "purchased_by"
-    ).order_by("-purchased_at")
+    remaining_items = (
+        refreshed_list.items.filter(is_purchased=False)
+        .select_related("added_by", "purchased_by")
+        .order_by("created_at")
+    )
+    purchased_items = (
+        refreshed_list.items.filter(is_purchased=True)
+        .select_related("added_by", "purchased_by")
+        .order_by("-purchased_at")
+    )
     return {
         "shopping_list": refreshed_list,
         "remaining_items": remaining_items,
@@ -48,6 +54,21 @@ def _require_household(request):
             "Your account is not connected to a household yet. Ask an administrator to add a household membership.",
         )
     return household
+
+
+@login_required
+def dashboard(request):
+    household = get_household_for_user(request.user)
+    summary = (
+        grocery_summary_for_user(request.user)
+        if household
+        else {"active_list_count": 0, "remaining_item_count": 0}
+    )
+    return render(
+        request,
+        "home.html",
+        {"household": household, "grocery_summary": summary},
+    )
 
 
 @login_required
@@ -107,7 +128,12 @@ def list_edit(request, list_id):
     return render(
         request,
         "shopping/list_form.html",
-        {"form": form, "page_title": "Edit Grocery List", "submit_label": "Save Changes", "shopping_list": shopping_list},
+        {
+            "form": form,
+            "page_title": "Edit Grocery List",
+            "submit_label": "Save Changes",
+            "shopping_list": shopping_list,
+        },
     )
 
 
@@ -161,6 +187,8 @@ def item_add(request, list_id):
             add_item(
                 shopping_list=shopping_list,
                 text=form.cleaned_data["text"],
+                quantity=form.cleaned_data["quantity"],
+                description=form.cleaned_data["description"],
                 user=request.user,
             )
         except InvalidShoppingOperation as error:
@@ -208,6 +236,35 @@ def item_toggle(request, item_id):
 
 
 @login_required
+def item_edit(request, item_id):
+    item = get_object_or_404(
+        items_for_user(request.user).filter(
+            shopping_list__status=ShoppingList.Status.ACTIVE
+        ),
+        pk=item_id,
+    )
+    form = ShoppingItemForm(request.POST or None, instance=item)
+    if request.method == "POST" and form.is_valid():
+        try:
+            update_item(
+                item=item,
+                text=form.cleaned_data["text"],
+                quantity=form.cleaned_data["quantity"],
+                description=form.cleaned_data["description"],
+            )
+        except InvalidShoppingOperation as error:
+            messages.error(request, str(error))
+            return redirect("shopping:history_detail", list_id=item.shopping_list_id)
+        messages.success(request, "Grocery item updated.")
+        return redirect("shopping:list_detail", list_id=item.shopping_list_id)
+    return render(
+        request,
+        "shopping/item_form.html",
+        {"form": form, "item": item, "shopping_list": item.shopping_list},
+    )
+
+
+@login_required
 @require_POST
 def item_delete(request, item_id):
     item = get_object_or_404(items_for_user(request.user), pk=item_id)
@@ -233,7 +290,9 @@ def history(request):
         request,
         "shopping/history.html",
         {
-            "shopping_lists": completed_lists_for_user(request.user) if household else [],
+            "shopping_lists": completed_lists_for_user(request.user)
+            if household
+            else [],
             "household": household,
         },
     )
@@ -253,6 +312,18 @@ def history_detail(request, list_id):
         "shopping/history_detail.html",
         {"shopping_list": shopping_list, "items": items},
     )
+
+
+@require_GET
+def service_worker(request):
+    response = render(
+        request,
+        "service-worker.js",
+        content_type="application/javascript",
+    )
+    response["Service-Worker-Allowed"] = "/"
+    response["Cache-Control"] = "no-cache"
+    return response
 
 
 def error_403(request, exception=None):

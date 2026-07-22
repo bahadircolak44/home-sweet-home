@@ -3,8 +3,10 @@
 {% block title %}Delete {{ shopping_list.name }} · Home Sweet Home{% endblock %}
 
 {% block content %}
-<div class="confirmation-page">
-    <div class="confirmation-card confirmation-card--danger">
+<div class="narrow-page">
+    {% include "shopping/partials/module_nav.html" %}
+    <div class="confirmation-page">
+      <div class="confirmation-card confirmation-card--danger">
         <span class="confirmation-card__icon" aria-hidden="true">🗑️</span>
         <p class="eyebrow">{{ shopping_list.icon }} {{ shopping_list.name }}</p>
         <h1>Delete this list?</h1>
@@ -16,6 +18,7 @@
                 <button class="button button--danger" type="submit">Delete List</button>
             </form>
         </div>
+      </div>
     </div>
 </div>
 {% endblock %}

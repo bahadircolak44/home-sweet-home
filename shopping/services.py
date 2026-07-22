@@ -1,4 +1,4 @@
-from django.db import transaction
+from django.db import models, transaction
 from django.utils import timezone
 
 from .models import ShoppingItem, ShoppingList
@@ -15,6 +15,19 @@ def active_lists_for_user(user):
         .select_related("created_by")
         .with_item_counts()
         .order_by("-updated_at")
+    )
+
+
+def grocery_summary_for_user(user):
+    return (
+        ShoppingList.objects.available_to(user)
+        .filter(status=ShoppingList.Status.ACTIVE)
+        .aggregate(
+            active_list_count=models.Count("id", distinct=True),
+            remaining_item_count=models.Count(
+                "items", filter=models.Q(items__is_purchased=False)
+            ),
+        )
     )
 
 
@@ -45,22 +58,38 @@ def touch_list(shopping_list_id):
 
 
 @transaction.atomic
-def add_item(*, shopping_list, text, user):
+def add_item(*, shopping_list, text, quantity, description, user):
     locked_list = ShoppingList.objects.select_for_update().get(pk=shopping_list.pk)
     if locked_list.status != ShoppingList.Status.ACTIVE:
         raise InvalidShoppingOperation("Completed lists are read-only.")
     item = ShoppingItem.objects.create(
-        shopping_list=locked_list, text=text, added_by=user
+        shopping_list=locked_list,
+        text=text,
+        quantity=quantity,
+        description=description,
+        added_by=user,
     )
     touch_list(locked_list.pk)
     return item
 
 
 @transaction.atomic
+def update_item(*, item, text, quantity, description):
+    locked_list = ShoppingList.objects.select_for_update().get(pk=item.shopping_list_id)
+    if locked_list.status != ShoppingList.Status.ACTIVE:
+        raise InvalidShoppingOperation("Completed lists are read-only.")
+    locked_item = ShoppingItem.objects.select_for_update().get(pk=item.pk)
+    locked_item.text = text
+    locked_item.quantity = quantity
+    locked_item.description = description
+    locked_item.save(update_fields=["text", "quantity", "description", "updated_at"])
+    touch_list(locked_list.pk)
+    return locked_item
+
+
+@transaction.atomic
 def toggle_item(*, item, user):
-    locked_list = ShoppingList.objects.select_for_update().get(
-        pk=item.shopping_list_id
-    )
+    locked_list = ShoppingList.objects.select_for_update().get(pk=item.shopping_list_id)
     if locked_list.status != ShoppingList.Status.ACTIVE:
         raise InvalidShoppingOperation("Completed lists are read-only.")
     locked_item = ShoppingItem.objects.select_for_update().get(pk=item.pk)
@@ -73,9 +102,7 @@ def toggle_item(*, item, user):
         locked_item.purchased_by = user
         locked_item.purchased_at = timezone.now()
     locked_item.save(
-        update_fields=[
-            "is_purchased", "purchased_by", "purchased_at", "updated_at"
-        ]
+        update_fields=["is_purchased", "purchased_by", "purchased_at", "updated_at"]
     )
     touch_list(locked_list.pk)
     return locked_item
@@ -83,9 +110,7 @@ def toggle_item(*, item, user):
 
 @transaction.atomic
 def delete_item(*, item):
-    locked_list = ShoppingList.objects.select_for_update().get(
-        pk=item.shopping_list_id
-    )
+    locked_list = ShoppingList.objects.select_for_update().get(pk=item.shopping_list_id)
     if locked_list.status != ShoppingList.Status.ACTIVE:
         raise InvalidShoppingOperation("Completed lists are read-only.")
     locked_item = ShoppingItem.objects.select_for_update().get(pk=item.pk)
@@ -106,8 +131,6 @@ def complete_list(*, shopping_list, user):
     locked_list.completed_at = now
     locked_list.updated_at = now
     locked_list.save(
-        update_fields=[
-            "status", "completed_by", "completed_at", "updated_at"
-        ]
+        update_fields=["status", "completed_by", "completed_at", "updated_at"]
     )
     return locked_list

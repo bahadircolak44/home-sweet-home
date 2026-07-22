@@ -4,6 +4,7 @@
 
 {% block content %}
 <div class="narrow-page">
+    {% include "shopping/partials/module_nav.html" %}
     <a class="back-link" href="{% if shopping_list %}{% url 'shopping:list_detail' list_id=shopping_list.pk %}{% else %}{% url 'shopping:active_lists' %}{% endif %}">← Back</a>
     <div class="page-heading page-heading--compact">
         <div>

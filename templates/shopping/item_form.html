@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}Edit {{ item.text }} · Home Sweet Home{% endblock %}
+
+{% block content %}
+<div class="narrow-page">
+    {% include "shopping/partials/module_nav.html" %}
+    <a class="back-link" href="{% url 'shopping:list_detail' list_id=shopping_list.pk %}">← Back to {{ shopping_list.name }}</a>
+    <div class="page-heading page-heading--compact">
+        <div>
+            <p class="eyebrow">{{ shopping_list.icon }} {{ shopping_list.name }}</p>
+            <h1>Edit Grocery Item</h1>
+        </div>
+    </div>
+    <form method="post" class="panel stack-form" novalidate>
+        {% csrf_token %}
+        {% if form.non_field_errors %}<div class="form-alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+        <div class="form-field">
+            <label for="{{ form.text.id_for_label }}">Item name</label>
+            {{ form.text }}
+            {% for error in form.text.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+        </div>
+        <div class="form-field form-field--quantity">
+            <label for="{{ form.quantity.id_for_label }}">Quantity</label>
+            {{ form.quantity }}
+            {% for error in form.quantity.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+        </div>
+        <div class="form-field">
+            <label for="{{ form.description.id_for_label }}">Description or product link <span class="optional-label">Optional</span></label>
+            {{ form.description }}
+            <p class="field-help">Add a note, preferred brand, or product URL.</p>
+            {% for error in form.description.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+        </div>
+        <div class="form-actions">
+            <button class="button button--primary" type="submit">Save Item</button>
+            <a class="button button--secondary" href="{% url 'shopping:list_detail' list_id=shopping_list.pk %}">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

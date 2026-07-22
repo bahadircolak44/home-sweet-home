@@ -24,13 +24,24 @@ class ShoppingListAdmin(admin.ModelAdmin):
 class ShoppingItemAdmin(admin.ModelAdmin):
     list_display = (
         "text",
+        "quantity",
         "shopping_list",
         "is_purchased",
         "added_by",
         "purchased_by",
-        "updated_at",
+        "created_at",
     )
-    list_filter = ("is_purchased", "shopping_list__household", "created_at")
-    search_fields = ("text", "shopping_list__name", "added_by__username")
+    list_filter = (
+        "is_purchased",
+        "shopping_list",
+        "shopping_list__household",
+        "created_at",
+    )
+    search_fields = (
+        "text",
+        "description",
+        "shopping_list__name",
+        "added_by__username",
+    )
     autocomplete_fields = ("shopping_list", "added_by", "purchased_by")
     readonly_fields = ("created_at", "updated_at", "purchased_at")

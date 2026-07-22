@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.validators import MaxLengthValidator, MinValueValidator
 from django.db import models
 from django.db.models import Q
 
@@ -13,12 +14,8 @@ class ShoppingListQuerySet(models.QuerySet):
     def with_item_counts(self):
         return self.annotate(
             item_total=models.Count("items"),
-            purchased_total=models.Count(
-                "items", filter=Q(items__is_purchased=True)
-            ),
-            remaining_total=models.Count(
-                "items", filter=Q(items__is_purchased=False)
-            ),
+            purchased_total=models.Count("items", filter=Q(items__is_purchased=True)),
+            remaining_total=models.Count("items", filter=Q(items__is_purchased=False)),
         )
 
 
@@ -100,7 +97,9 @@ class ShoppingList(models.Model):
         self.name = self.name.strip()
         if not self.name:
             raise ValidationError({"name": "Enter a list name."})
-        completion_is_set = self.completed_at is not None and self.completed_by_id is not None
+        completion_is_set = (
+            self.completed_at is not None and self.completed_by_id is not None
+        )
         if self.status == self.Status.ACTIVE and (
             self.completed_at is not None or self.completed_by_id is not None
         ):
@@ -151,6 +150,10 @@ class ShoppingItem(models.Model):
         ShoppingList, on_delete=models.CASCADE, related_name="items"
     )
     text = models.CharField(max_length=255)
+    quantity = models.PositiveIntegerField(default=1, validators=[MinValueValidator(1)])
+    description = models.TextField(
+        blank=True, default="", validators=[MaxLengthValidator(1000)]
+    )
     is_purchased = models.BooleanField(default=False)
     added_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -174,6 +177,10 @@ class ShoppingItem(models.Model):
         ordering = ["created_at"]
         constraints = [
             models.CheckConstraint(
+                condition=Q(quantity__gte=1),
+                name="shopping_item_quantity_at_least_one",
+            ),
+            models.CheckConstraint(
                 condition=(
                     Q(
                         is_purchased=False,
@@ -187,7 +194,7 @@ class ShoppingItem(models.Model):
                     )
                 ),
                 name="shopping_item_purchase_metadata",
-            )
+            ),
         ]
 
     def __str__(self):
@@ -196,9 +203,12 @@ class ShoppingItem(models.Model):
     def clean(self):
         super().clean()
         self.text = self.text.strip()
+        self.description = self.description.strip()
         if not self.text:
             raise ValidationError({"text": "Enter an item."})
-        purchase_is_set = self.purchased_at is not None and self.purchased_by_id is not None
+        purchase_is_set = (
+            self.purchased_at is not None and self.purchased_by_id is not None
+        )
         if not self.is_purchased and (
             self.purchased_at is not None or self.purchased_by_id is not None
         ):
@@ -208,6 +218,7 @@ class ShoppingItem(models.Model):
 
     def save(self, *args, **kwargs):
         self.text = self.text.strip()
+        self.description = self.description.strip()
         if not self.text:
             raise ValidationError({"text": "Enter an item."})
         return super().save(*args, **kwargs)

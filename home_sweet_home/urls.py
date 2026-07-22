@@ -3,8 +3,10 @@ from django.contrib.auth import views as auth_views
 from django.urls import include, path
 
 from shopping.forms import HomeAuthenticationForm
+from shopping import views as shopping_views
 
 urlpatterns = [
+    path("", shopping_views.dashboard, name="home"),
     path("admin/", admin.site.urls),
     path(
         "accounts/login/",
@@ -15,7 +17,8 @@ urlpatterns = [
         name="login",
     ),
     path("accounts/logout/", auth_views.LogoutView.as_view(), name="logout"),
-    path("", include("shopping.urls")),
+    path("service-worker.js", shopping_views.service_worker, name="service_worker"),
+    path("groceries/", include("shopping.urls")),
 ]
 
 handler403 = "shopping.views.error_403"

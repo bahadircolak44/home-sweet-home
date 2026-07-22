@@ -3,8 +3,10 @@
 {% block title %}Complete {{ shopping_list.name }} · Home Sweet Home{% endblock %}
 
 {% block content %}
-<div class="confirmation-page">
-    <div class="confirmation-card">
+<div class="narrow-page">
+    {% include "shopping/partials/module_nav.html" %}
+    <div class="confirmation-page">
+      <div class="confirmation-card">
         <span class="confirmation-card__icon" aria-hidden="true">{% if shopping_list.remaining_item_count %}🧺{% else %}🎉{% endif %}</span>
         <p class="eyebrow">{{ shopping_list.icon }} {{ shopping_list.name }}</p>
         <h1>Complete shopping?</h1>
@@ -22,6 +24,7 @@
                 <button class="button button--primary" type="submit">{% if shopping_list.remaining_item_count %}Complete Anyway{% else %}Complete Shopping{% endif %}</button>
             </form>
         </div>
+      </div>
     </div>
 </div>
 {% endblock %}

@@ -5,20 +5,36 @@
             method="post"
             action="{% url 'shopping:item_add' list_id=shopping_list.pk %}"
             class="add-item-form"
+            data-add-item-form
             hx-post="{% url 'shopping:item_add' list_id=shopping_list.pk %}"
             hx-target="#list-live-region"
             hx-swap="outerHTML"
             hx-disabled-elt="button"
         >
             {% csrf_token %}
-            <div class="add-item-form__field">
-                <label class="sr-only" for="{{ item_form.text.id_for_label }}">New item</label>
-                {{ item_form.text }}
-                {% for error in item_form.text.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+            <div class="add-item-form__primary">
+                <div class="add-item-form__field">
+                    <label class="sr-only" for="{{ item_form.text.id_for_label }}">Item name</label>
+                    {{ item_form.text }}
+                    {% for error in item_form.text.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+                </div>
+                <div class="add-item-form__quantity">
+                    <label for="{{ item_form.quantity.id_for_label }}">Qty</label>
+                    {{ item_form.quantity }}
+                    {% for error in item_form.quantity.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+                </div>
+                <button class="button button--primary add-item-form__button" type="submit">
+                    <span aria-hidden="true">+</span> Add
+                </button>
             </div>
-            <button class="button button--primary add-item-form__button" type="submit">
-                <span aria-hidden="true">+</span> Add
+            <button class="details-toggle" type="button" data-item-details-toggle aria-expanded="{% if item_form.description.value or item_form.description.errors %}true{% else %}false{% endif %}">
+                <span aria-hidden="true">+</span> Add details
             </button>
+            <div class="add-item-details" data-item-details {% if not item_form.description.value and not item_form.description.errors %}hidden{% endif %}>
+                <label class="sr-only" for="{{ item_form.description.id_for_label }}">Description or product link</label>
+                {{ item_form.description }}
+                {% for error in item_form.description.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+            </div>
         </form>
     </section>
 

@@ -5,15 +5,24 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#4f7b62">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Home Sweet Home">
     <title>{% block title %}Home Sweet Home{% endblock %}</title>
-    <link rel="stylesheet" href="{% static 'css/app.css' %}">
+    <link rel="manifest" href="{% static 'manifest.webmanifest' %}">
+    <link rel="icon" href="{% static 'icons/favicon.ico' %}" sizes="any">
+    <link rel="icon" type="image/png" sizes="32x32" href="{% static 'icons/favicon-32.png' %}">
+    <link rel="apple-touch-icon" sizes="180x180" href="{% static 'icons/apple-touch-icon.png' %}">
+    <link rel="stylesheet" href="{% static 'css/app.css' %}?v=5">
     <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.7/dist/htmx.min.js" defer></script>
+    <script src="{% static 'js/app.js' %}?v=5" defer></script>
 </head>
-<body>
+<body data-service-worker-url="{% url 'service_worker' %}">
     {% if user.is_authenticated %}
         <header class="site-header">
             <div class="site-header__inner">
-                <a class="brand" href="{% url 'shopping:active_lists' %}" aria-label="Home Sweet Home grocery lists">
+                <a class="brand" href="{% url 'home' %}" aria-label="Home Sweet Home dashboard">
                     <span class="brand__mark" aria-hidden="true">🏠</span>
                     <span>Home Sweet Home</span>
                 </a>
@@ -42,31 +51,19 @@
     </main>
 
     {% if user.is_authenticated %}
-        {% with current_url=request.resolver_match.url_name|default:"" %}
+        {% with current_url=request.resolver_match.url_name|default:"" current_namespace=request.resolver_match.namespace|default:"" %}
         <nav class="mobile-nav" aria-label="Primary navigation">
-            <a class="mobile-nav__link{% if current_url == 'active_lists' or current_url == 'list_create' or current_url == 'list_detail' or current_url == 'list_edit' or current_url == 'list_delete' or current_url == 'list_complete' %} is-active{% endif %}" href="{% url 'shopping:active_lists' %}">
-                <span aria-hidden="true">🛒</span>
-                <span>Lists</span>
+            <a class="mobile-nav__link{% if current_url == 'home' %} is-active{% endif %}" href="{% url 'home' %}">
+                <span aria-hidden="true">🏠</span>
+                <span>Home</span>
             </a>
-            <a class="mobile-nav__link{% if current_url == 'history' or current_url == 'history_detail' %} is-active{% endif %}" href="{% url 'shopping:history' %}">
-                <span aria-hidden="true">🕘</span>
-                <span>History</span>
+            <a class="mobile-nav__link{% if current_namespace == 'shopping' %} is-active{% endif %}" href="{% url 'shopping:active_lists' %}">
+                <span aria-hidden="true">🛒</span>
+                <span>Grocery Lists</span>
             </a>
         </nav>
         {% endwith %}
     {% endif %}
 
-    <script>
-        document.body.addEventListener("htmx:beforeSwap", function (event) {
-            if (event.detail.xhr.status === 422) {
-                event.detail.shouldSwap = true;
-                event.detail.isError = false;
-            }
-        });
-        document.body.addEventListener("htmx:afterSwap", function (event) {
-            const input = document.querySelector("#list-live-region [data-add-item-input]");
-            if (input) input.focus();
-        });
-    </script>
 </body>
 </html>

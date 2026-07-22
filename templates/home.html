@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}Home · Home Sweet Home{% endblock %}
+
+{% block content %}
+<section class="dashboard-hero">
+    <p class="eyebrow">{% if household %}{{ household.name }}{% else %}Your household{% endif %}</p>
+    <h1>Home Sweet Home</h1>
+    <p>Everything your household needs, in one place.</p>
+</section>
+
+{% if not household %}
+    <div class="dashboard-notice" role="status">
+        Your account is not connected to a household yet. An administrator can add your membership in Django Admin.
+    </div>
+{% endif %}
+
+<section class="module-grid" aria-label="Household modules">
+    <a class="module-card module-card--active" href="{% url 'shopping:active_lists' %}">
+        <div class="module-card__top">
+            <span class="module-card__icon" aria-hidden="true">🛒</span>
+            <span class="module-card__arrow" aria-hidden="true">→</span>
+        </div>
+        <div>
+            <p class="eyebrow">Available now</p>
+            <h2>Grocery Lists</h2>
+            <p>Shared grocery lists for everyone at home.</p>
+        </div>
+        <div class="module-card__summary" aria-label="Grocery list summary">
+            <span><strong>{{ grocery_summary.active_list_count }}</strong> active list{{ grocery_summary.active_list_count|pluralize }}</span>
+            <span><strong>{{ grocery_summary.remaining_item_count }}</strong> item{{ grocery_summary.remaining_item_count|pluralize }} remaining</span>
+        </div>
+        <span class="module-card__action">Open Grocery Lists</span>
+    </a>
+
+    <article class="module-card module-card--disabled" aria-disabled="true">
+        <div class="module-card__top">
+            <span class="module-card__icon module-card__icon--muted" aria-hidden="true">🧹</span>
+            <span class="status-badge">Work in Progress</span>
+        </div>
+        <div>
+            <p class="eyebrow">Coming later</p>
+            <h2>Household Chores</h2>
+            <p>Shared household tasks and recurring chores.</p>
+        </div>
+    </article>
+</section>
+
+<section class="install-panel" aria-labelledby="install-title">
+    <div>
+        <h2 id="install-title">Keep home close</h2>
+        <p>Install Home Sweet Home for quick access from your phone.</p>
+    </div>
+    <div class="install-panel__actions">
+        <button class="button button--secondary" type="button" data-install-app hidden>Install App</button>
+        <button class="text-button" type="button" data-ios-install-help hidden>How to install</button>
+    </div>
+    <p class="ios-install-help" data-ios-install-instructions hidden>
+        Open the Share menu and select “Add to Home Screen”.
+    </p>
+</section>
+{% endblock %}

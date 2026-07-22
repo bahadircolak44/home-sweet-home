@@ -7,7 +7,11 @@ from .models import ShoppingItem, ShoppingList
 class HomeAuthenticationForm(AuthenticationForm):
     username = forms.CharField(
         widget=forms.TextInput(
-            attrs={"autocomplete": "username", "placeholder": "Username", "autofocus": True}
+            attrs={
+                "autocomplete": "username",
+                "placeholder": "Username",
+                "autofocus": True,
+            }
         )
     )
     password = forms.CharField(
@@ -37,10 +41,33 @@ class ShoppingListForm(forms.ModelForm):
 
 
 class ShoppingItemForm(forms.ModelForm):
+    quantity = forms.IntegerField(
+        min_value=1,
+        initial=1,
+        widget=forms.NumberInput(
+            attrs={"min": 1, "inputmode": "numeric", "aria-label": "Quantity"}
+        ),
+    )
+    description = forms.CharField(
+        required=False,
+        max_length=1000,
+        widget=forms.Textarea(
+            attrs={
+                "rows": 3,
+                "placeholder": "Description or product link...",
+                "data-description-input": "",
+            }
+        ),
+    )
+
     class Meta:
         model = ShoppingItem
-        fields = ("text",)
-        labels = {"text": "New item"}
+        fields = ("text", "quantity", "description")
+        labels = {
+            "text": "Item name",
+            "quantity": "Quantity",
+            "description": "Description or product link",
+        }
         widgets = {
             "text": forms.TextInput(
                 attrs={
@@ -56,3 +83,6 @@ class ShoppingItemForm(forms.ModelForm):
         if not text:
             raise forms.ValidationError("Enter an item.")
         return text
+
+    def clean_description(self):
+        return self.cleaned_data.get("description", "").strip()

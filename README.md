@@ -1,6 +1,6 @@
 # Home Sweet Home
 
-Home Sweet Home is a private household web application. Its first module provides shared grocery lists: household members can maintain multiple lists, add and purchase items together, and review completed trips in history.
+Home Sweet Home is a private household web application with a central dashboard for household modules. Its first active module provides shared grocery lists: household members can maintain multiple lists, add quantities and optional product details, purchase items together, and review completed trips in history. A Household Chores module is shown as a disabled preview for future development.
 
 Public registration is intentionally excluded from this MVP. Users and household memberships are initially managed through Django Admin.
 
@@ -12,6 +12,17 @@ Public registration is intentionally excluded from this MVP. Users and household
 - Docker and Docker Compose
 - WhiteNoise for static files
 - Plain, mobile-first CSS
+- Progressive Web App manifest and conservative static-asset service worker
+
+## Application modules
+
+The authenticated root route displays the Home Sweet Home dashboard. Grocery Lists is available under `/groceries/`; Household Chores is intentionally marked as `Work in Progress` and does not link to an unfinished page.
+
+Grocery items support a required quantity and an optional description. Descriptions may contain notes, brand preferences, or product links. Valid URLs are converted to safe external links while user-entered HTML remains escaped. Active items can be edited; completed lists remain read-only.
+
+## Progressive Web App support
+
+Home Sweet Home includes a web manifest, original application icons, and a minimal service worker. The service worker caches only local CSS, JavaScript, the manifest, and application icons. Authenticated pages, forms, and HTMX mutation responses are never cached, and full offline grocery-list functionality is not implemented.
 
 ## Prerequisites
 
@@ -43,6 +54,18 @@ The entrypoint waits for PostgreSQL, applies migrations, and collects static fil
 ```text
 http://127.0.0.1:8000/
 ```
+
+## Install on a phone
+
+### Android
+
+Open the application in Chrome and choose Install App or Add to Home screen.
+
+### iPhone and iPad
+
+Open the application in Safari, open the Share menu, and select Add to Home Screen.
+
+Installation features require HTTPS in production. Supported browsers accept `localhost` for local development, so the Docker workflow may continue to use HTTP. Production should be deployed behind HTTPS.
 
 ## First migrations
 

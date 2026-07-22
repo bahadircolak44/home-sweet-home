@@ -14,7 +14,9 @@ def env_bool(name, default=False):
 
 
 def env_list(name, default=""):
-    return [value.strip() for value in os.getenv(name, default).split(",") if value.strip()]
+    return [
+        value.strip() for value in os.getenv(name, default).split(",") if value.strip()
+    ]
 
 
 SECRET_KEY = os.getenv("SECRET_KEY", "unsafe-local-development-key")
@@ -29,8 +31,8 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "households",
-    "shopping",
+    "households.apps.HouseholdsConfig",
+    "shopping.apps.ShoppingConfig",
 ]
 
 MIDDLEWARE = [
@@ -52,6 +54,9 @@ TEMPLATES = [
         "DIRS": [BASE_DIR / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
+            "libraries": {
+                "shopping_extras": "shopping.templatetags.shopping_extras",
+            },
             "context_processors": [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
@@ -76,7 +81,9 @@ DATABASES = {
 }
 
 AUTH_PASSWORD_VALIDATORS = [
-    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    {
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"
+    },
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
@@ -94,8 +101,9 @@ STATICFILES_DIRS = [BASE_DIR / "static"]
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 LOGIN_URL = "login"
-LOGIN_REDIRECT_URL = "shopping:active_lists"
+LOGIN_REDIRECT_URL = "home"
 LOGOUT_REDIRECT_URL = "login"
+URLIZE_ASSUME_HTTPS = True
 
 LOGGING = {
     "version": 1,

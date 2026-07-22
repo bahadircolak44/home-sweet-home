@@ -12,6 +12,7 @@ urlpatterns = [
     path("lists/<int:list_id>/delete/", views.list_delete, name="list_delete"),
     path("lists/<int:list_id>/complete/", views.list_complete, name="list_complete"),
     path("lists/<int:list_id>/items/add/", views.item_add, name="item_add"),
+    path("items/<int:item_id>/edit/", views.item_edit, name="item_edit"),
     path("items/<int:item_id>/toggle/", views.item_toggle, name="item_toggle"),
     path("items/<int:item_id>/delete/", views.item_delete, name="item_delete"),
     path("history/", views.history, name="history"),

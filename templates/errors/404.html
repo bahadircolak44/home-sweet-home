@@ -1,0 +1,5 @@
+{% extends "base.html" %}
+{% block title %}Page Not Found · Home Sweet Home{% endblock %}
+{% block content %}
+<section class="error-page"><span aria-hidden="true">🧭</span><p class="eyebrow">Error 404</p><h1>Page not found</h1><p>The page may have moved, or it may not belong to your household.</p><a class="button button--primary" href="{% url 'shopping:active_lists' %}">Back to Grocery Lists</a></section>
+{% endblock %}

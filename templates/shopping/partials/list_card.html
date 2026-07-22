@@ -1,0 +1,23 @@
+<article class="list-card">
+    <a class="list-card__link" href="{% if history_card %}{% url 'shopping:history_detail' list_id=shopping_list.pk %}{% else %}{% url 'shopping:list_detail' list_id=shopping_list.pk %}{% endif %}" aria-label="Open {{ shopping_list.name }}">
+        <div class="list-card__top">
+            <span class="list-card__icon" aria-hidden="true">{{ shopping_list.icon }}</span>
+            <span class="list-card__arrow" aria-hidden="true">→</span>
+        </div>
+        <h2>{{ shopping_list.name }}</h2>
+        {% if history_card %}
+            <p class="list-card__meta">Completed {{ shopping_list.completed_at|date:"M j, Y" }}</p>
+            <div class="list-card__stats">
+                <span><strong>{{ shopping_list.total_item_count }}</strong> item{{ shopping_list.total_item_count|pluralize }}</span>
+                <span>by {{ shopping_list.completed_by.get_full_name|default:shopping_list.completed_by.get_username }}</span>
+            </div>
+        {% else %}
+            <div class="list-card__stats">
+                <span><strong>{{ shopping_list.remaining_item_count }}</strong> remaining</span>
+                <span>{{ shopping_list.purchased_item_count }}/{{ shopping_list.total_item_count }} purchased</span>
+            </div>
+            {% include "shopping/partials/progress.html" %}
+            <p class="list-card__updated">Updated {{ shopping_list.updated_at|timesince }} ago</p>
+        {% endif %}
+    </a>
+</article>

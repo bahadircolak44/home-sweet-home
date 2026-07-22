@@ -1,0 +1,38 @@
+<article class="item-row{% if item.is_purchased %} item-row--purchased{% endif %}">
+    <form
+        method="post"
+        action="{% url 'shopping:item_toggle' item_id=item.pk %}"
+        class="item-row__toggle-form"
+        hx-post="{% url 'shopping:item_toggle' item_id=item.pk %}"
+        hx-target="#list-live-region"
+        hx-swap="outerHTML"
+        hx-disabled-elt="button"
+    >
+        {% csrf_token %}
+        <button class="item-row__toggle" type="submit" aria-label="{% if item.is_purchased %}Return {{ item.text }} to remaining items{% else %}Mark {{ item.text }} as purchased{% endif %}">
+            <span class="check-control" aria-hidden="true">{% if item.is_purchased %}✓{% endif %}</span>
+            <span class="item-row__content">
+                <span class="item-row__text">{{ item.text }}</span>
+                <span class="item-row__meta">
+                    {% if item.is_purchased %}
+                        Purchased by {{ item.purchased_by.get_full_name|default:item.purchased_by.get_username }}
+                    {% else %}
+                        Added by {{ item.added_by.get_full_name|default:item.added_by.get_username }}
+                    {% endif %}
+                </span>
+            </span>
+        </button>
+    </form>
+    <form
+        method="post"
+        action="{% url 'shopping:item_delete' item_id=item.pk %}"
+        hx-post="{% url 'shopping:item_delete' item_id=item.pk %}"
+        hx-target="#list-live-region"
+        hx-swap="outerHTML"
+        hx-confirm="Delete {{ item.text }}?"
+        hx-disabled-elt="button"
+    >
+        {% csrf_token %}
+        <button class="icon-button icon-button--danger" type="submit" aria-label="Delete {{ item.text }}">×</button>
+    </form>
+</article>

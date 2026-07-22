@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block title %}{{ shopping_list.name }} History · Home Sweet Home{% endblock %}
+
+{% block content %}
+<div class="detail-page">
+    <a class="back-link" href="{% url 'shopping:history' %}">← History</a>
+    <header class="detail-heading history-heading">
+        <div class="detail-heading__identity">
+            <span class="detail-heading__icon" aria-hidden="true">{{ shopping_list.icon }}</span>
+            <div>
+                <p class="eyebrow">Completed grocery list</p>
+                <h1>{{ shopping_list.name }}</h1>
+                <p>{{ shopping_list.completed_at|date:"F j, Y \a\t H:i" }} · by {{ shopping_list.completed_by.get_full_name|default:shopping_list.completed_by.get_username }}</p>
+            </div>
+        </div>
+        <span class="read-only-badge">Read only</span>
+    </header>
+
+    <section class="history-items" aria-labelledby="history-items-title">
+        <div class="section-heading">
+            <h2 id="history-items-title">All items</h2>
+            <span class="count-badge">{{ items|length }}</span>
+        </div>
+        {% if items %}
+            <div class="item-list">
+                {% for item in items %}
+                    <article class="history-item{% if item.is_purchased %} history-item--purchased{% endif %}">
+                        <span class="check-control" aria-hidden="true">{% if item.is_purchased %}✓{% else %}–{% endif %}</span>
+                        <div>
+                            <p class="history-item__text">{{ item.text }}</p>
+                            <p class="history-item__meta">Added by {{ item.added_by.get_full_name|default:item.added_by.get_username }}{% if item.is_purchased %} · Purchased by {{ item.purchased_by.get_full_name|default:item.purchased_by.get_username }}{% else %} · Not purchased{% endif %}</p>
+                        </div>
+                    </article>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="inline-empty"><span aria-hidden="true">🧺</span><p>This list was completed without any items.</p></div>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}

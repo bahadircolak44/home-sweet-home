@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }} · Home Sweet Home{% endblock %}
+
+{% block content %}
+<div class="narrow-page">
+    <a class="back-link" href="{% if shopping_list %}{% url 'shopping:list_detail' list_id=shopping_list.pk %}{% else %}{% url 'shopping:active_lists' %}{% endif %}">← Back</a>
+    <div class="page-heading page-heading--compact">
+        <div>
+            <p class="eyebrow">Shared grocery list</p>
+            <h1>{{ page_title }}</h1>
+        </div>
+    </div>
+    <form method="post" class="panel stack-form" novalidate>
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+            <div class="form-alert" role="alert">{{ form.non_field_errors }}</div>
+        {% endif %}
+        <div class="form-field">
+            <label for="{{ form.name.id_for_label }}">List name</label>
+            {{ form.name }}
+            {% for error in form.name.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+        </div>
+        <fieldset class="form-field">
+            <legend>Choose an icon</legend>
+            <div class="icon-picker">
+                {% for radio in form.icon %}
+                    <label class="icon-option">
+                        {{ radio.tag }}
+                        <span aria-hidden="true">{{ radio.data.value }}</span>
+                        <span class="sr-only">{{ radio.choice_label }}</span>
+                    </label>
+                {% endfor %}
+            </div>
+            {% for error in form.icon.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+        </fieldset>
+        <div class="form-actions">
+            <button class="button button--primary" type="submit">{{ submit_label }}</button>
+            <a class="button button--secondary" href="{% if shopping_list %}{% url 'shopping:list_detail' list_id=shopping_list.pk %}{% else %}{% url 'shopping:active_lists' %}{% endif %}">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

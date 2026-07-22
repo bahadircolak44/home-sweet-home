@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}{{ shopping_list.name }} · Home Sweet Home{% endblock %}
+
+{% block content %}
+<div class="detail-page">
+    <a class="back-link" href="{% url 'shopping:active_lists' %}">← All Lists</a>
+    <header class="detail-heading">
+        <div class="detail-heading__identity">
+            <span class="detail-heading__icon" aria-hidden="true">{{ shopping_list.icon }}</span>
+            <div>
+                <p class="eyebrow">Grocery list</p>
+                <h1>{{ shopping_list.name }}</h1>
+                <p>Updated {{ shopping_list.updated_at|timesince }} ago</p>
+            </div>
+        </div>
+        <a class="button button--secondary button--small" href="{% url 'shopping:list_edit' list_id=shopping_list.pk %}">Edit List</a>
+    </header>
+
+    {% include "shopping/partials/list_interactions.html" %}
+
+    <section class="list-actions" aria-labelledby="list-actions-title">
+        <div>
+            <h2 id="list-actions-title">Finished shopping?</h2>
+            <p>Move this list to your household history when the trip is done.</p>
+        </div>
+        <a class="button button--primary" href="{% url 'shopping:list_complete' list_id=shopping_list.pk %}">Complete Shopping</a>
+    </section>
+    <div class="danger-zone">
+        <a class="danger-link" href="{% url 'shopping:list_delete' list_id=shopping_list.pk %}">Delete this list</a>
+    </div>
+</div>
+{% endblock %}

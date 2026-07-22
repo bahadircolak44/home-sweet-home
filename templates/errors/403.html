@@ -1,0 +1,5 @@
+{% extends "base.html" %}
+{% block title %}Access Denied · Home Sweet Home{% endblock %}
+{% block content %}
+<section class="error-page"><span aria-hidden="true">🔒</span><p class="eyebrow">Error 403</p><h1>Access denied</h1><p>You do not have permission to view this page.</p><a class="button button--primary" href="{% url 'shopping:active_lists' %}">Back to Grocery Lists</a></section>
+{% endblock %}

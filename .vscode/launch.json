@@ -1,0 +1,99 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Django: Run Server",
+            "type": "debugpy",
+            "request": "launch",
+            "python": "${workspaceFolder}/.venv/bin/python",
+            "program": "${workspaceFolder}/manage.py",
+            "args": ["runserver", "127.0.0.1:8000"],
+            "django": true,
+            "justMyCode": true,
+            "console": "integratedTerminal",
+            "envFile": "${workspaceFolder}/.env",
+            "env": {
+                "DJANGO_SETTINGS_MODULE": "home_sweet_home.settings.local",
+                "DATABASE_URL": "postgresql://home_sweet_home:home_sweet_home@localhost:5432/home_sweet_home"
+            }
+        },
+        {
+            "name": "Django: Make Migrations",
+            "type": "debugpy",
+            "request": "launch",
+            "python": "${workspaceFolder}/.venv/bin/python",
+            "program": "${workspaceFolder}/manage.py",
+            "args": ["makemigrations"],
+            "console": "integratedTerminal",
+            "envFile": "${workspaceFolder}/.env",
+            "env": {
+                "DJANGO_SETTINGS_MODULE": "home_sweet_home.settings.local",
+                "DATABASE_URL": "postgresql://home_sweet_home:home_sweet_home@localhost:5432/home_sweet_home"
+            }
+        },
+        {
+            "name": "Django: Migrate",
+            "type": "debugpy",
+            "request": "launch",
+            "python": "${workspaceFolder}/.venv/bin/python",
+            "program": "${workspaceFolder}/manage.py",
+            "args": ["migrate"],
+            "console": "integratedTerminal",
+            "envFile": "${workspaceFolder}/.env",
+            "env": {
+                "DJANGO_SETTINGS_MODULE": "home_sweet_home.settings.local",
+                "DATABASE_URL": "postgresql://home_sweet_home:home_sweet_home@localhost:5432/home_sweet_home"
+            }
+        },
+        {
+            "name": "Django: Create Superuser",
+            "type": "debugpy",
+            "request": "launch",
+            "python": "${workspaceFolder}/.venv/bin/python",
+            "program": "${workspaceFolder}/manage.py",
+            "args": ["createsuperuser"],
+            "console": "integratedTerminal",
+            "envFile": "${workspaceFolder}/.env",
+            "env": {
+                "DJANGO_SETTINGS_MODULE": "home_sweet_home.settings.local",
+                "DATABASE_URL": "postgresql://home_sweet_home:home_sweet_home@localhost:5432/home_sweet_home"
+            }
+        },
+        {
+            "name": "Django: Run Tests",
+            "type": "debugpy",
+            "request": "launch",
+            "python": "${workspaceFolder}/.venv/bin/python",
+            "program": "${workspaceFolder}/manage.py",
+            "args": ["test"],
+            "console": "integratedTerminal",
+            "envFile": "${workspaceFolder}/.env",
+            "env": {
+                "DJANGO_SETTINGS_MODULE": "home_sweet_home.settings.local",
+                "DATABASE_URL": "postgresql://home_sweet_home:home_sweet_home@localhost:5432/home_sweet_home"
+            }
+        },
+        {
+            "name": "Django: Management Command",
+            "type": "debugpy",
+            "request": "launch",
+            "python": "${workspaceFolder}/.venv/bin/python",
+            "program": "${workspaceFolder}/manage.py",
+            "args": ["${input:managementCommand}"],
+            "console": "integratedTerminal",
+            "envFile": "${workspaceFolder}/.env",
+            "env": {
+                "DJANGO_SETTINGS_MODULE": "home_sweet_home.settings.local",
+                "DATABASE_URL": "postgresql://home_sweet_home:home_sweet_home@localhost:5432/home_sweet_home"
+            }
+        }
+    ],
+    "inputs": [
+        {
+            "id": "managementCommand",
+            "type": "promptString",
+            "description": "Django management command name",
+            "default": "check"
+        }
+    ]
+}

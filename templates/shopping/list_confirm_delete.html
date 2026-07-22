@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}Delete {{ shopping_list.name }} · Home Sweet Home{% endblock %}
+
+{% block content %}
+<div class="confirmation-page">
+    <div class="confirmation-card confirmation-card--danger">
+        <span class="confirmation-card__icon" aria-hidden="true">🗑️</span>
+        <p class="eyebrow">{{ shopping_list.icon }} {{ shopping_list.name }}</p>
+        <h1>Delete this list?</h1>
+        <p>This permanently deletes the grocery list and every item in it. This action cannot be undone.</p>
+        <div class="confirmation-actions">
+            <a class="button button--secondary" href="{% url 'shopping:list_detail' list_id=shopping_list.pk %}">Cancel</a>
+            <form method="post">
+                {% csrf_token %}
+                <button class="button button--danger" type="submit">Delete List</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

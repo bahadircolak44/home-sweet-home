@@ -1,0 +1,32 @@
+<section class="item-section" aria-labelledby="remaining-title">
+    <div class="section-heading">
+        <h2 id="remaining-title">Still needed</h2>
+        <span class="count-badge">{{ shopping_list.remaining_item_count }}</span>
+    </div>
+    {% if remaining_items %}
+        <div class="item-list">
+            {% for item in remaining_items %}
+                {% include "shopping/partials/item_row.html" %}
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="inline-empty">
+            <span aria-hidden="true">✨</span>
+            <p>{% if shopping_list.total_item_count %}Everything on this list is purchased.{% else %}Add your first item above.{% endif %}</p>
+        </div>
+    {% endif %}
+</section>
+
+{% if purchased_items %}
+<section class="item-section item-section--purchased" aria-labelledby="purchased-title">
+    <div class="section-heading">
+        <h2 id="purchased-title">Purchased</h2>
+        <span class="count-badge count-badge--muted">{{ shopping_list.purchased_item_count }}</span>
+    </div>
+    <div class="item-list">
+        {% for item in purchased_items %}
+            {% include "shopping/partials/item_row.html" %}
+        {% endfor %}
+    </div>
+</section>
+{% endif %}

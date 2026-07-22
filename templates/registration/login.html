@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block title %}Sign In · Home Sweet Home{% endblock %}
+
+{% block content %}
+<section class="auth-card">
+    <div class="auth-card__icon" aria-hidden="true">🏠</div>
+    <p class="eyebrow">Welcome home</p>
+    <h1>Home Sweet Home</h1>
+    <p class="auth-card__intro">Sign in to share grocery lists with your household.</p>
+
+    {% if form.non_field_errors %}
+        <div class="form-alert" role="alert">
+            {% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
+        </div>
+    {% endif %}
+
+    <form method="post" class="stack-form" novalidate>
+        {% csrf_token %}
+        {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+        <div class="form-field">
+            <label for="{{ form.username.id_for_label }}">Username</label>
+            {{ form.username }}
+            {% for error in form.username.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+        </div>
+        <div class="form-field">
+            <label for="{{ form.password.id_for_label }}">Password</label>
+            {{ form.password }}
+            {% for error in form.password.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+        </div>
+        <button class="button button--primary button--full" type="submit">Sign In</button>
+    </form>
+    <p class="auth-card__help">Accounts are managed privately by your household administrator.</p>
+</section>
+{% endblock %}

@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block title %}Grocery Lists · Home Sweet Home{% endblock %}
+
+{% block content %}
+<div class="page-heading">
+    <div>
+        <p class="eyebrow">{% if household %}{{ household.name }}{% else %}Shared household{% endif %}</p>
+        <h1>Grocery Lists</h1>
+        <p>Keep everyone in sync, from pantry to checkout.</p>
+    </div>
+    {% if household %}<a class="button button--primary" href="{% url 'shopping:list_create' %}">New List</a>{% endif %}
+</div>
+
+{% if not household %}
+    <section class="empty-state">
+        <span class="empty-state__icon" aria-hidden="true">🔑</span>
+        <h2>No household connected</h2>
+        <p>Your account is ready, but an administrator needs to add it to a household before you can share grocery lists.</p>
+    </section>
+{% elif shopping_lists %}
+    <div class="card-grid">
+        {% for shopping_list in shopping_lists %}
+            {% include "shopping/partials/list_card.html" with history_card=False %}
+        {% endfor %}
+    </div>
+{% else %}
+    <section class="empty-state">
+        <span class="empty-state__icon" aria-hidden="true">🧺</span>
+        <h2>Your basket is ready</h2>
+        <p>Create a shared list and add the first thing your household needs.</p>
+        <a class="button button--primary" href="{% url 'shopping:list_create' %}">Create Your First List</a>
+    </section>
+{% endif %}
+{% endblock %}

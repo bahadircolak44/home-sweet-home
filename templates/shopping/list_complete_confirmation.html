@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}Complete {{ shopping_list.name }} · Home Sweet Home{% endblock %}
+
+{% block content %}
+<div class="confirmation-page">
+    <div class="confirmation-card">
+        <span class="confirmation-card__icon" aria-hidden="true">{% if shopping_list.remaining_item_count %}🧺{% else %}🎉{% endif %}</span>
+        <p class="eyebrow">{{ shopping_list.icon }} {{ shopping_list.name }}</p>
+        <h1>Complete shopping?</h1>
+        {% if shopping_list.remaining_item_count %}
+            <p><strong>{{ shopping_list.remaining_item_count }} item{{ shopping_list.remaining_item_count|pluralize }} still remain.</strong> You can complete the list anyway, but it will become read-only in history.</p>
+        {% elif shopping_list.total_item_count %}
+            <p>Every item has been purchased. Completing the list will move it to your household history.</p>
+        {% else %}
+            <p>This list has no items. You can still complete it and move it to your household history.</p>
+        {% endif %}
+        <div class="confirmation-actions">
+            <a class="button button--secondary" href="{% url 'shopping:list_detail' list_id=shopping_list.pk %}">Return to List</a>
+            <form method="post">
+                {% csrf_token %}
+                <button class="button button--primary" type="submit">{% if shopping_list.remaining_item_count %}Complete Anyway{% else %}Complete Shopping{% endif %}</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

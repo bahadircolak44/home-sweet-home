@@ -92,7 +92,7 @@ jobs:
           memory: 512Mi
           min_instance_count: 0
           max_instance_count: 2
-          max_instance_request_concurrency: 20
+          max_instance_request_concurrency: 1
           service_timeout: 60s
           environment_variables: |-
             DJANGO_SETTINGS_MODULE=home_sweet_home.settings.production

@@ -100,9 +100,14 @@ jobs:
             CSRF_TRUSTED_ORIGINS=https://${{ vars.GCP_REGION }}-${{ vars.GCP_PROJECT_ID }}.cloudfunctions.net
             SECURE_SSL_REDIRECT=True
             TIME_ZONE=Europe/Amsterdam
+            PUSH_NOTIFICATIONS_ENABLED=True
+            VAPID_PUBLIC_KEY=${{ vars.VAPID_PUBLIC_KEY }}
+            VAPID_PRIVATE_KEY_PATH=/secrets/vapid/private_key.pem
+            VAPID_SUBJECT=${{ vars.VAPID_SUBJECT }}
           secrets: |-
             DATABASE_URL=projects/${{ vars.GCP_PROJECT_ID }}/secrets/home-sweet-home-database-url/versions/latest
             SECRET_KEY=projects/${{ vars.GCP_PROJECT_ID }}/secrets/home-sweet-home-django-secret-key/versions/latest
+            /secrets/vapid/private_key.pem=projects/${{ vars.GCP_PROJECT_ID }}/secrets/home-sweet-home-vapid-private-key/versions/1
 
       - name: Add deployment URL to the job summary
         env:

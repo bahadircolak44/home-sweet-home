@@ -11,3 +11,11 @@ htmlcov/
 staticfiles/
 .DS_Store
 *.log
+private_key.pem
+public_key.pem
+vapid_private_key.pem
+vapid_public_key.pem
+*.vapid.pem
+*vapid*.pem
+*vapid*.key
+*vapid*.der

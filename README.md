@@ -24,6 +24,48 @@ Grocery items support a required quantity and an optional description. Descripti
 
 Home Sweet Home includes a web manifest, original application icons, and a minimal service worker. The service worker caches only local CSS, JavaScript, the manifest, and application icons. Authenticated pages, forms, and HTMX mutation responses are never cached, and full offline grocery-list functionality is not implemented.
 
+## Web Push notifications
+
+Home Sweet Home uses standards-based Web Push to notify other members of a household when a grocery list or item changes. Notifications are delivered directly from the Django application to each browser's Push subscription; no Firebase, queue, or separate notification service is used. The person making a grocery change is never notified about their own change. Notification text contains list and item names only: item descriptions and product URLs are never sent to the lock screen.
+
+Permission and subscriptions are per device and per browser. Every household member must enable notifications separately on each installed device or browser. Signing out does not necessarily revoke operating-system notification permission, so use **Disable Notifications** before removing a personal device from someone else's account.
+
+### Generate local VAPID keys
+
+Web Push uses one VAPID key pair per environment. Generate a local pair from the repository root on the host, after activating `.venv` and installing the requirements. Do not run this command through `docker compose exec`: the development container uses an unprivileged user that cannot write to the bind-mounted project directory.
+
+```bash
+vapid --gen
+vapid --applicationServerKey --private-key private_key.pem
+```
+
+The first command creates `private_key.pem` and `public_key.pem`. Copy the displayed Application Server Key from the second command into `VAPID_PUBLIC_KEY`. The private key files are ignored by Git and Docker, and must never be committed or shared in logs. Keep the same VAPID key pair after users subscribe: regenerating it invalidates existing browser subscriptions.
+
+Add the following to `.env` for local development:
+
+```dotenv
+PUSH_NOTIFICATIONS_ENABLED=True
+VAPID_PUBLIC_KEY=your-application-server-key
+VAPID_PRIVATE_KEY_PATH=private_key.pem
+VAPID_SUBJECT=mailto:notifications@example.com
+```
+
+`VAPID_PRIVATE_KEY_PATH` may be relative to the repository root locally or an absolute path in production. When `PUSH_NOTIFICATIONS_ENABLED=True`, the application fails at startup if any VAPID setting is missing or the private-key path does not point to a file.
+
+### Enable, test, and disable on a device
+
+1. Sign in and open the dashboard.
+2. On Android, install the app from Chrome if desired, then select **Enable Notifications** and accept the browser permission prompt.
+3. On iPhone or iPad, open the site in Safari, use Share → **Add to Home Screen**, launch the installed app, then select **Enable Notifications**. iOS web push is available only from the installed Home Screen app.
+4. Select **Send Test Notification** to verify the current device only.
+5. Select **Disable Notifications** before handing a device to someone else; this removes the server record and unsubscribes the browser.
+
+If permission was denied, enable notifications again from the browser or device settings, then return to the dashboard. The application never asks for permission automatically on page load.
+
+### Cloud Run and Secret Manager
+
+Store the VAPID private key in Secret Manager, alongside the existing database URL and Django secret. Mount the secret as a read-only file in the Cloud Run service and configure `VAPID_PRIVATE_KEY_PATH` with that absolute mounted path. Configure `VAPID_PUBLIC_KEY`, `VAPID_SUBJECT`, and `PUSH_NOTIFICATIONS_ENABLED=True` as non-secret runtime environment variables. Grant the runtime service account access only to the required secret versions. Do not place the private key in a repository, image, GitHub variable, or build log.
+
 ## Prerequisites
 
 - Docker

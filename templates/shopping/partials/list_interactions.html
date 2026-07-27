@@ -38,6 +38,38 @@
         </form>
     </section>
 
+    <section class="quick-add-panel" aria-labelledby="quick-add-title">
+        <div class="quick-add-panel__heading">
+            <div>
+                <p class="eyebrow">Weekly essentials</p>
+                <h2 id="quick-add-title">Quick add</h2>
+            </div>
+            <p>Tap + to add one to this list.</p>
+        </div>
+        <div class="quick-add-items">
+            {% for item_name in quick_add_items %}
+                <form
+                    method="post"
+                    action="{% url 'shopping:item_add' list_id=shopping_list.pk %}"
+                    class="quick-add-form"
+                    hx-post="{% url 'shopping:item_add' list_id=shopping_list.pk %}"
+                    hx-target="#list-live-region"
+                    hx-swap="outerHTML"
+                    hx-disabled-elt="button"
+                >
+                    {% csrf_token %}
+                    <input type="hidden" name="text" value="{{ item_name }}">
+                    <input type="hidden" name="quantity" value="1">
+                    <input type="hidden" name="description" value="">
+                    <button class="quick-add-button" type="submit" aria-label="Add {{ item_name }} to this list">
+                        <span>{{ item_name }}</span>
+                        <span class="quick-add-button__plus" aria-hidden="true">+</span>
+                    </button>
+                </form>
+            {% endfor %}
+        </div>
+    </section>
+
     <section class="progress-panel" aria-label="Shopping progress">
         <div class="progress-panel__copy">
             <span><strong>{{ shopping_list.purchased_item_count }}</strong> of {{ shopping_list.total_item_count }} purchased</span>

@@ -31,13 +31,20 @@ class ShoppingList(models.Model):
         ("🐈", "Cat"),
         ("🧴", "Bottle"),
         ("📦", "Package"),
+        ("albert-heijn", "Albert Heijn"),
+        ("jumbo", "Jumbo"),
     ]
+
+    STORE_ICON_ASSETS = {
+        "albert-heijn": "icons/albert-heijn.svg",
+        "jumbo": "icons/jumbo.png",
+    }
 
     household = models.ForeignKey(
         Household, on_delete=models.CASCADE, related_name="shopping_lists"
     )
     name = models.CharField(max_length=120)
-    icon = models.CharField(max_length=8, choices=ICON_CHOICES, default="🛒")
+    icon = models.CharField(max_length=16, choices=ICON_CHOICES, default="🛒")
     status = models.CharField(
         max_length=12, choices=Status.choices, default=Status.ACTIVE
     )
@@ -91,6 +98,10 @@ class ShoppingList(models.Model):
 
     def __str__(self):
         return f"{self.icon} {self.name}"
+
+    @property
+    def icon_asset(self):
+        return self.STORE_ICON_ASSETS.get(self.icon)
 
     def clean(self):
         super().clean()

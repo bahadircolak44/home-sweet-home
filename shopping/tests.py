@@ -118,6 +118,54 @@ class ShoppingFlowTests(TestCase):
         )
         self.assertContains(detail, "1×", count=2)
 
+    def test_quick_add_items_are_rendered_and_use_the_normal_add_flow(self):
+        self.client.force_login(self.alex)
+        add_url = reverse("shopping:item_add", args=[self.shopping_list.pk])
+
+        detail = self.client.get(
+            reverse("shopping:list_detail", args=[self.shopping_list.pk])
+        )
+
+        self.assertContains(detail, "Quick add")
+        for item_name in ("Roka", "Tavuk salam", "Kefir", "Yogurt", "Ekmek", "Mantar"):
+            self.assertContains(detail, item_name)
+
+        response = self.client.post(
+            add_url,
+            {"text": "Roka", "quantity": 1, "description": ""},
+            HTTP_HX_REQUEST="true",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Quick add")
+        item = ShoppingItem.objects.get(shopping_list=self.shopping_list, text="Roka")
+        self.assertEqual(item.quantity, 1)
+        self.assertEqual(item.added_by, self.alex)
+
+    def test_albert_heijn_and_jumbo_are_available_as_list_icons(self):
+        self.client.force_login(self.alex)
+        create_url = reverse("shopping:list_create")
+
+        create_page = self.client.get(create_url)
+        self.assertContains(create_page, "Albert Heijn")
+        self.assertContains(create_page, "Jumbo")
+        self.assertContains(create_page, "icons/albert-heijn.svg")
+        self.assertContains(create_page, "icons/jumbo.png")
+
+        response = self.client.post(
+            create_url,
+            {"name": "Albert run", "icon": "albert-heijn"},
+        )
+
+        shopping_list = ShoppingList.objects.get(name="Albert run")
+        self.assertRedirects(
+            response, reverse("shopping:list_detail", args=[shopping_list.pk])
+        )
+        self.assertEqual(shopping_list.icon, "albert-heijn")
+
+        detail = self.client.get(reverse("shopping:list_detail", args=[shopping_list.pk]))
+        self.assertContains(detail, "icons/albert-heijn.svg")
+
     def test_quantity_rejects_zero_and_negative_values(self):
         self.client.force_login(self.alex)
         add_url = reverse("shopping:item_add", args=[self.shopping_list.pk])
@@ -135,6 +183,66 @@ class ShoppingFlowTests(TestCase):
                     status_code=422,
                 )
         self.assertFalse(ShoppingItem.objects.filter(text="Invalid quantity").exists())
+
+    def test_remaining_item_quantity_can_be_adjusted_from_the_list(self):
+        item = ShoppingItem.objects.create(
+            shopping_list=self.shopping_list,
+            text="Milk",
+            quantity=2,
+            added_by=self.alex,
+        )
+        self.client.force_login(self.sam)
+        quantity_url = reverse("shopping:item_quantity_adjust", args=[item.pk])
+
+        detail = self.client.get(
+            reverse("shopping:list_detail", args=[self.shopping_list.pk])
+        )
+        self.assertContains(detail, "quantity-stepper")
+        self.assertContains(detail, 'value="-1"')
+        self.assertContains(detail, 'value="1"')
+
+        response = self.client.post(
+            quantity_url,
+            {"delta": 1},
+            HTTP_HX_REQUEST="true",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "3×")
+        item.refresh_from_db()
+        self.assertEqual(item.quantity, 3)
+
+        self.client.post(quantity_url, {"delta": -1})
+        item.refresh_from_db()
+        self.assertEqual(item.quantity, 2)
+
+    def test_quantity_adjustment_stays_at_one_and_is_not_shown_for_purchased_items(self):
+        item = ShoppingItem.objects.create(
+            shopping_list=self.shopping_list,
+            text="Bread",
+            added_by=self.alex,
+        )
+        self.client.force_login(self.alex)
+        quantity_url = reverse("shopping:item_quantity_adjust", args=[item.pk])
+
+        detail = self.client.get(
+            reverse("shopping:list_detail", args=[self.shopping_list.pk])
+        )
+        self.assertContains(detail, "quantity-stepper")
+        self.assertContains(detail, "disabled")
+
+        response = self.client.post(quantity_url, {"delta": -1})
+        self.assertRedirects(
+            response, reverse("shopping:list_detail", args=[self.shopping_list.pk])
+        )
+        item.refresh_from_db()
+        self.assertEqual(item.quantity, 1)
+
+        self.client.post(reverse("shopping:item_toggle", args=[item.pk]))
+        purchased_detail = self.client.get(
+            reverse("shopping:list_detail", args=[self.shopping_list.pk])
+        )
+        self.assertNotContains(purchased_detail, "quantity-stepper")
 
     def test_description_is_trimmed_linked_and_safely_displayed(self):
         self.client.force_login(self.alex)
@@ -238,12 +346,20 @@ class ShoppingFlowTests(TestCase):
             reverse("shopping:item_add", args=[self.shopping_list.pk]),
             {"text": "Bananas", "quantity": 1},
         )
+        quantity_response = self.client.post(
+            reverse("shopping:item_quantity_adjust", args=[item.pk]),
+            {"delta": 1},
+        )
         edit_response = self.client.get(reverse("shopping:item_edit", args=[item.pk]))
         history = self.client.get(
             reverse("shopping:history_detail", args=[self.shopping_list.pk])
         )
 
         self.assertEqual(add_response.status_code, 404)
+        self.assertRedirects(
+            quantity_response,
+            reverse("shopping:history_detail", args=[self.shopping_list.pk]),
+        )
         self.assertEqual(edit_response.status_code, 404)
         self.assertContains(history, "Apples")
         self.assertContains(history, "3×")

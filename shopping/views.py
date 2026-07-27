@@ -1,6 +1,7 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.conf import settings
+from django.http import HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_GET, require_POST
 
@@ -12,6 +13,7 @@ from .services import (
     InvalidShoppingOperation,
     active_lists_for_user,
     add_item,
+    adjust_item_quantity,
     complete_list,
     completed_lists_for_user,
     create_list,
@@ -24,6 +26,9 @@ from .services import (
     update_list,
     update_item,
 )
+
+QUICK_ADD_ITEMS = ("Roka", "Tavuk salam", "Kefir", "Yogurt", "Ekmek", "Mantar",
+                    "Domates", "Salatalık", "Meyve", "Marul")
 
 
 def _is_htmx(request):
@@ -47,6 +52,7 @@ def _interaction_context(shopping_list, item_form=None):
         "remaining_items": remaining_items,
         "purchased_items": purchased_items,
         "item_form": item_form or ShoppingItemForm(),
+        "quick_add_items": QUICK_ADD_ITEMS,
     }
 
 
@@ -246,6 +252,37 @@ def item_toggle(request, item_id):
     except InvalidShoppingOperation as error:
         messages.error(request, str(error))
         return redirect("shopping:history_detail", list_id=shopping_list.pk)
+    if _is_htmx(request):
+        return render(
+            request,
+            "shopping/partials/list_interactions.html",
+            _interaction_context(shopping_list),
+        )
+    return redirect("shopping:list_detail", list_id=shopping_list.pk)
+
+
+@login_required
+@require_POST
+def item_quantity_adjust(request, item_id):
+    try:
+        delta = int(request.POST.get("delta", ""))
+    except (TypeError, ValueError):
+        return HttpResponseBadRequest("Quantity adjustment must be a whole number.")
+    if delta not in (-1, 1):
+        return HttpResponseBadRequest("Quantity adjustment must be one step at a time.")
+
+    item = get_object_or_404(items_for_user(request.user), pk=item_id)
+    shopping_list = item.shopping_list
+    try:
+        adjust_item_quantity(item=item, delta=delta, user=request.user)
+    except InvalidShoppingOperation as error:
+        messages.error(request, str(error))
+        destination = (
+            "shopping:history_detail"
+            if shopping_list.status == ShoppingList.Status.COMPLETED
+            else "shopping:list_detail"
+        )
+        return redirect(destination, list_id=shopping_list.pk)
     if _is_htmx(request):
         return render(
             request,

@@ -1,7 +1,7 @@
 <article class="list-card">
     <a class="list-card__link" href="{% if history_card %}{% url 'shopping:history_detail' list_id=shopping_list.pk %}{% else %}{% url 'shopping:list_detail' list_id=shopping_list.pk %}{% endif %}" aria-label="Open {{ shopping_list.name }}">
         <div class="list-card__top">
-            <span class="list-card__icon" aria-hidden="true">{{ shopping_list.icon }}</span>
+            <span class="list-card__icon" aria-hidden="true">{% include "shopping/partials/list_icon.html" %}</span>
             <span class="list-card__arrow" aria-hidden="true">→</span>
         </div>
         <h2>{{ shopping_list.name }}</h2>

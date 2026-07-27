@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}{{ page_title }} · Home Sweet Home{% endblock %}
 
@@ -28,7 +29,13 @@
                 {% for radio in form.icon %}
                     <label class="icon-option">
                         {{ radio.tag }}
-                        <span aria-hidden="true">{{ radio.data.value }}</span>
+                        {% if radio.data.value == "albert-heijn" %}
+                            <img class="icon-option__store-icon" src="{% static 'icons/albert-heijn.svg' %}" alt="">
+                        {% elif radio.data.value == "jumbo" %}
+                            <img class="icon-option__store-icon" src="{% static 'icons/jumbo.png' %}" alt="">
+                        {% else %}
+                            <span aria-hidden="true">{{ radio.data.value }}</span>
+                        {% endif %}
                         <span class="sr-only">{{ radio.choice_label }}</span>
                     </label>
                 {% endfor %}

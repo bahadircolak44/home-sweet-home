@@ -372,6 +372,45 @@ h2 {
     padding-top: 0.5rem;
 }
 
+.notification-panel {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 1rem;
+    padding: 1rem 1.2rem;
+    border: 1px solid #cfdbd2;
+    border-radius: 16px;
+    background: rgba(229, 239, 232, 0.76);
+    gap: 1rem;
+}
+
+.notification-panel h2 {
+    margin-bottom: 0.15rem;
+    font-size: 1rem;
+}
+
+.notification-panel__status,
+.notification-panel__noscript {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.86rem;
+}
+
+.notification-panel__actions {
+    display: flex;
+    flex: 0 0 auto;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.55rem;
+}
+
+.notification-panel__disable {
+    min-height: 42px;
+    color: var(--danger);
+    font-size: 0.87rem;
+}
+
 .module-nav {
     display: inline-flex;
     margin-bottom: 1.25rem;
@@ -1360,6 +1399,15 @@ h2 {
     .install-panel__actions {
         align-items: start;
         flex-direction: column;
+    }
+
+    .notification-panel {
+        align-items: start;
+        flex-direction: column;
+    }
+
+    .notification-panel__actions {
+        justify-content: start;
     }
 
     .add-item-form__button span {

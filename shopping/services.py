@@ -1,11 +1,36 @@
 from django.db import models, transaction
+from django.urls import reverse
 from django.utils import timezone
+
+from push_notifications.services import schedule_household_notification
 
 from .models import ShoppingItem, ShoppingList
 
 
 class InvalidShoppingOperation(Exception):
     pass
+
+
+def _actor_name(user):
+    return user.get_full_name().strip() or user.get_username()
+
+
+def _item_label(text, quantity):
+    return f"{quantity}× {text}" if quantity > 1 else text
+
+
+def _schedule_list_notification(*, shopping_list, user, body, url):
+    """Build a safe payload before the transaction's commit callback runs."""
+    schedule_household_notification(
+        household_id=shopping_list.household_id,
+        actor_user_id=user.pk,
+        payload={
+            "title": "Home Sweet Home",
+            "body": body,
+            "url": url,
+            "tag": f"grocery-list-{shopping_list.pk}",
+        },
+    )
 
 
 def active_lists_for_user(user):
@@ -58,6 +83,61 @@ def touch_list(shopping_list_id):
 
 
 @transaction.atomic
+def create_list(*, household, name, icon, user):
+    shopping_list = ShoppingList.objects.create(
+        household=household,
+        name=name,
+        icon=icon,
+        created_by=user,
+    )
+    _schedule_list_notification(
+        shopping_list=shopping_list,
+        user=user,
+        body=f"{_actor_name(user)} created {shopping_list.name}.",
+        url=reverse("shopping:list_detail", args=[shopping_list.pk]),
+    )
+    return shopping_list
+
+
+@transaction.atomic
+def update_list(*, shopping_list, name, icon, user):
+    locked_list = ShoppingList.objects.select_for_update().get(pk=shopping_list.pk)
+    if locked_list.status != ShoppingList.Status.ACTIVE:
+        raise InvalidShoppingOperation("Completed lists are read-only.")
+    locked_list.name = name
+    locked_list.icon = icon
+    locked_list.save(update_fields=["name", "icon", "updated_at"])
+    _schedule_list_notification(
+        shopping_list=locked_list,
+        user=user,
+        body=f"{_actor_name(user)} updated {locked_list.name}.",
+        url=reverse("shopping:list_detail", args=[locked_list.pk]),
+    )
+    return locked_list
+
+
+@transaction.atomic
+def delete_list(*, shopping_list, user):
+    locked_list = ShoppingList.objects.select_for_update().get(pk=shopping_list.pk)
+    if locked_list.status != ShoppingList.Status.ACTIVE:
+        raise InvalidShoppingOperation("Completed lists are read-only.")
+    household_id = locked_list.household_id
+    list_id = locked_list.pk
+    list_name = locked_list.name
+    locked_list.delete()
+    schedule_household_notification(
+        household_id=household_id,
+        actor_user_id=user.pk,
+        payload={
+            "title": "Home Sweet Home",
+            "body": f"{_actor_name(user)} deleted {list_name}.",
+            "url": reverse("shopping:active_lists"),
+            "tag": f"grocery-list-{list_id}",
+        },
+    )
+
+
+@transaction.atomic
 def add_item(*, shopping_list, text, quantity, description, user):
     locked_list = ShoppingList.objects.select_for_update().get(pk=shopping_list.pk)
     if locked_list.status != ShoppingList.Status.ACTIVE:
@@ -70,11 +150,20 @@ def add_item(*, shopping_list, text, quantity, description, user):
         added_by=user,
     )
     touch_list(locked_list.pk)
+    _schedule_list_notification(
+        shopping_list=locked_list,
+        user=user,
+        body=(
+            f"{_actor_name(user)} added {_item_label(item.text, item.quantity)} "
+            f"to {locked_list.name}."
+        ),
+        url=reverse("shopping:list_detail", args=[locked_list.pk]),
+    )
     return item
 
 
 @transaction.atomic
-def update_item(*, item, text, quantity, description):
+def update_item(*, item, text, quantity, description, user):
     locked_list = ShoppingList.objects.select_for_update().get(pk=item.shopping_list_id)
     if locked_list.status != ShoppingList.Status.ACTIVE:
         raise InvalidShoppingOperation("Completed lists are read-only.")
@@ -84,6 +173,12 @@ def update_item(*, item, text, quantity, description):
     locked_item.description = description
     locked_item.save(update_fields=["text", "quantity", "description", "updated_at"])
     touch_list(locked_list.pk)
+    _schedule_list_notification(
+        shopping_list=locked_list,
+        user=user,
+        body=f"{_actor_name(user)} updated {locked_item.text} in {locked_list.name}.",
+        url=reverse("shopping:list_detail", args=[locked_list.pk]),
+    )
     return locked_item
 
 
@@ -105,18 +200,35 @@ def toggle_item(*, item, user):
         update_fields=["is_purchased", "purchased_by", "purchased_at", "updated_at"]
     )
     touch_list(locked_list.pk)
+    if locked_item.is_purchased:
+        body = f"{_actor_name(user)} marked {locked_item.text} as purchased."
+    else:
+        body = f"{_actor_name(user)} returned {locked_item.text} to remaining items."
+    _schedule_list_notification(
+        shopping_list=locked_list,
+        user=user,
+        body=body,
+        url=reverse("shopping:list_detail", args=[locked_list.pk]),
+    )
     return locked_item
 
 
 @transaction.atomic
-def delete_item(*, item):
+def delete_item(*, item, user):
     locked_list = ShoppingList.objects.select_for_update().get(pk=item.shopping_list_id)
     if locked_list.status != ShoppingList.Status.ACTIVE:
         raise InvalidShoppingOperation("Completed lists are read-only.")
     locked_item = ShoppingItem.objects.select_for_update().get(pk=item.pk)
     shopping_list_id = locked_list.pk
+    item_text = locked_item.text
     locked_item.delete()
     touch_list(shopping_list_id)
+    _schedule_list_notification(
+        shopping_list=locked_list,
+        user=user,
+        body=f"{_actor_name(user)} removed {item_text} from {locked_list.name}.",
+        url=reverse("shopping:list_detail", args=[locked_list.pk]),
+    )
     return shopping_list_id
 
 
@@ -132,5 +244,11 @@ def complete_list(*, shopping_list, user):
     locked_list.updated_at = now
     locked_list.save(
         update_fields=["status", "completed_by", "completed_at", "updated_at"]
+    )
+    _schedule_list_notification(
+        shopping_list=locked_list,
+        user=user,
+        body=f"{_actor_name(user)} completed {locked_list.name}.",
+        url=reverse("shopping:history_detail", args=[locked_list.pk]),
     )
     return locked_list

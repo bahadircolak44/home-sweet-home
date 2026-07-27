@@ -59,4 +59,38 @@
         Open the Share menu and select “Add to Home Screen”.
     </p>
 </section>
+
+{% if push_notifications_enabled %}
+<section
+    class="notification-panel"
+    aria-labelledby="notification-settings-title"
+    data-notification-settings
+    data-vapid-public-key="{{ vapid_public_key }}"
+    data-subscribe-url="{% url 'push_notifications:subscribe' %}"
+    data-unsubscribe-url="{% url 'push_notifications:unsubscribe' %}"
+    data-test-url="{% url 'push_notifications:test' %}"
+>
+    <div>
+        <p class="eyebrow">This device</p>
+        <h2 id="notification-settings-title">Notifications</h2>
+        <p class="notification-panel__status" data-notification-status aria-live="polite">
+            Checking notification support…
+        </p>
+    </div>
+    <div class="notification-panel__actions" data-notification-actions>
+        <button class="button button--primary button--small" type="button" data-enable-notifications hidden>
+            Enable Notifications
+        </button>
+        <button class="button button--secondary button--small" type="button" data-test-notification hidden>
+            Send Test Notification
+        </button>
+        <button class="text-button notification-panel__disable" type="button" data-disable-notifications hidden>
+            Disable Notifications
+        </button>
+    </div>
+    <noscript>
+        <p class="notification-panel__noscript">Notifications require JavaScript in a supported browser.</p>
+    </noscript>
+</section>
+{% endif %}
 {% endblock %}

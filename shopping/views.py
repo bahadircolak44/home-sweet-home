@@ -1,5 +1,6 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.conf import settings
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_GET, require_POST
 
@@ -13,11 +14,14 @@ from .services import (
     add_item,
     complete_list,
     completed_lists_for_user,
+    create_list,
+    delete_list,
     delete_item,
     grocery_summary_for_user,
     items_for_user,
     lists_for_user,
     toggle_item,
+    update_list,
     update_item,
 )
 
@@ -67,7 +71,12 @@ def dashboard(request):
     return render(
         request,
         "home.html",
-        {"household": household, "grocery_summary": summary},
+        {
+            "household": household,
+            "grocery_summary": summary,
+            "push_notifications_enabled": settings.PUSH_NOTIFICATIONS_ENABLED,
+            "vapid_public_key": settings.VAPID_PUBLIC_KEY,
+        },
     )
 
 
@@ -91,10 +100,12 @@ def list_create(request):
         return redirect("shopping:active_lists")
     form = ShoppingListForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
-        shopping_list = form.save(commit=False)
-        shopping_list.household = household
-        shopping_list.created_by = request.user
-        shopping_list.save()
+        shopping_list = create_list(
+            household=household,
+            name=form.cleaned_data["name"],
+            icon=form.cleaned_data["icon"],
+            user=request.user,
+        )
         messages.success(request, "Grocery list created.")
         return redirect("shopping:list_detail", list_id=shopping_list.pk)
     return render(
@@ -122,7 +133,12 @@ def list_edit(request, list_id):
     )
     form = ShoppingListForm(request.POST or None, instance=shopping_list)
     if request.method == "POST" and form.is_valid():
-        form.save()
+        shopping_list = update_list(
+            shopping_list=shopping_list,
+            name=form.cleaned_data["name"],
+            icon=form.cleaned_data["icon"],
+            user=request.user,
+        )
         messages.success(request, "Grocery list updated.")
         return redirect("shopping:list_detail", list_id=shopping_list.pk)
     return render(
@@ -144,7 +160,11 @@ def list_delete(request, list_id):
         pk=list_id,
     )
     if request.method == "POST":
-        shopping_list.delete()
+        try:
+            delete_list(shopping_list=shopping_list, user=request.user)
+        except InvalidShoppingOperation as error:
+            messages.error(request, str(error))
+            return redirect("shopping:active_lists")
         messages.success(request, "Grocery list deleted.")
         return redirect("shopping:active_lists")
     return render(
@@ -251,6 +271,7 @@ def item_edit(request, item_id):
                 text=form.cleaned_data["text"],
                 quantity=form.cleaned_data["quantity"],
                 description=form.cleaned_data["description"],
+                user=request.user,
             )
         except InvalidShoppingOperation as error:
             messages.error(request, str(error))
@@ -270,7 +291,7 @@ def item_delete(request, item_id):
     item = get_object_or_404(items_for_user(request.user), pk=item_id)
     shopping_list = item.shopping_list
     try:
-        delete_item(item=item)
+        delete_item(item=item, user=request.user)
     except InvalidShoppingOperation as error:
         messages.error(request, str(error))
         return redirect("shopping:history_detail", list_id=shopping_list.pk)

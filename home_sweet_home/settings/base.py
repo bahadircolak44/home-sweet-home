@@ -32,6 +32,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "households.apps.HouseholdsConfig",
+    "push_notifications.apps.PushNotificationsConfig",
     "shopping.apps.ShoppingConfig",
 ]
 
@@ -106,6 +107,39 @@ LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "home"
 LOGOUT_REDIRECT_URL = "login"
 URLIZE_ASSUME_HTTPS = True
+
+PUSH_NOTIFICATIONS_ENABLED = env_bool("PUSH_NOTIFICATIONS_ENABLED", False)
+VAPID_PUBLIC_KEY = os.getenv("VAPID_PUBLIC_KEY", "").strip()
+VAPID_SUBJECT = os.getenv("VAPID_SUBJECT", "").strip()
+_vapid_private_key_path = os.getenv("VAPID_PRIVATE_KEY_PATH", "").strip()
+VAPID_PRIVATE_KEY_PATH = (
+    Path(_vapid_private_key_path)
+    if _vapid_private_key_path and Path(_vapid_private_key_path).is_absolute()
+    else BASE_DIR / _vapid_private_key_path
+    if _vapid_private_key_path
+    else None
+)
+
+if PUSH_NOTIFICATIONS_ENABLED:
+    missing_vapid_settings = [
+        name
+        for name, value in {
+            "VAPID_PUBLIC_KEY": VAPID_PUBLIC_KEY,
+            "VAPID_PRIVATE_KEY_PATH": _vapid_private_key_path,
+            "VAPID_SUBJECT": VAPID_SUBJECT,
+        }.items()
+        if not value
+    ]
+    if missing_vapid_settings:
+        raise ImproperlyConfigured(
+            "Web Push is enabled but these settings are missing: "
+            + ", ".join(missing_vapid_settings)
+            + "."
+        )
+    if not VAPID_PRIVATE_KEY_PATH.is_file():
+        raise ImproperlyConfigured(
+            "VAPID_PRIVATE_KEY_PATH must point to a readable private key file."
+        )
 
 LOGGING = {
     "version": 1,

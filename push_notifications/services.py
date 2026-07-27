@@ -1,9 +1,11 @@
 import json
 import logging
+from datetime import timedelta
 from functools import partial
 
 from django.conf import settings
 from django.db import transaction
+from django.utils import timezone
 
 from pywebpush import WebPushException, webpush
 
@@ -13,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 PUSH_TTL_SECONDS = 300
 PUSH_TIMEOUT_SECONDS = 5
+NOTIFICATION_COOLDOWN = timedelta(minutes=10)
 
 
 def _push_status_code(error):
@@ -23,6 +26,31 @@ def _push_status_code(error):
 def remove_expired_subscription(subscription_id):
     """Remove a subscription that the push provider says is no longer valid."""
     PushSubscription.objects.filter(pk=subscription_id).delete()
+
+
+def _record_activity_and_claim_notification(subscription_id):
+    """Record activity and claim a notification after a genuine quiet period."""
+    activity_at = timezone.now()
+    inactive_before = activity_at - NOTIFICATION_COOLDOWN
+    with transaction.atomic():
+        subscription = (
+            PushSubscription.objects.select_for_update()
+            .filter(pk=subscription_id)
+            .first()
+        )
+        if subscription is None:
+            return False
+        was_inactive = (
+            subscription.last_activity_at is None
+            or subscription.last_activity_at <= inactive_before
+        )
+        subscription.last_activity_at = activity_at
+        update_fields = ["last_activity_at"]
+        if was_inactive:
+            subscription.last_notified_at = activity_at
+            update_fields.append("last_notified_at")
+        subscription.save(update_fields=update_fields)
+    return was_inactive
 
 
 def send_push_notification(subscription, payload):
@@ -75,6 +103,8 @@ def send_to_household_members(*, household_id, actor_user_id, payload):
         .distinct()
     )
     for subscription in subscriptions:
+        if not _record_activity_and_claim_notification(subscription.pk):
+            continue
         send_push_notification(subscription, payload)
 
 

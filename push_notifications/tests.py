@@ -1,4 +1,5 @@
 import json
+from datetime import timedelta
 from unittest.mock import Mock, patch
 
 from django.contrib.auth import get_user_model
@@ -192,3 +193,61 @@ class PushNotificationTests(TestCase):
         payload = json.loads(webpush.call_args.kwargs["data"])
         self.assertEqual(payload["body"], "alex completed Weekly groceries.")
         self.assertNotIn(str(self.shopping_list.pk), payload["body"])
+
+    @patch("push_notifications.services.webpush")
+    def test_device_receives_a_new_notification_only_after_ten_minutes_of_inactivity(
+        self, webpush
+    ):
+        subscription = self.create_subscription(
+            self.sam, "https://push.example.test/activity-window"
+        )
+
+        with self.captureOnCommitCallbacks(execute=True):
+            add_item(
+                shopping_list=self.shopping_list,
+                text="Milk",
+                quantity=1,
+                description="",
+                user=self.alex,
+            )
+        subscription.refresh_from_db()
+        self.assertIsNotNone(subscription.last_notified_at)
+        first_activity_at = subscription.last_activity_at
+
+        with self.captureOnCommitCallbacks(execute=True):
+            add_item(
+                shopping_list=self.shopping_list,
+                text="Bread",
+                quantity=1,
+                description="",
+                user=self.alex,
+            )
+        self.assertEqual(webpush.call_count, 1)
+        subscription.refresh_from_db()
+        self.assertGreater(subscription.last_activity_at, first_activity_at)
+
+        PushSubscription.objects.filter(pk=subscription.pk).update(
+            last_notified_at=timezone.now() - timedelta(minutes=10, seconds=1)
+        )
+        with self.captureOnCommitCallbacks(execute=True):
+            add_item(
+                shopping_list=self.shopping_list,
+                text="Butter",
+                quantity=1,
+                description="",
+                user=self.alex,
+            )
+        self.assertEqual(webpush.call_count, 1)
+
+        PushSubscription.objects.filter(pk=subscription.pk).update(
+            last_activity_at=timezone.now() - timedelta(minutes=10, seconds=1)
+        )
+        with self.captureOnCommitCallbacks(execute=True):
+            add_item(
+                shopping_list=self.shopping_list,
+                text="Eggs",
+                quantity=1,
+                description="",
+                user=self.alex,
+            )
+        self.assertEqual(webpush.call_count, 2)

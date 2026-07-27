@@ -20,6 +20,8 @@ class PushSubscription(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     last_seen_at = models.DateTimeField()
+    last_notified_at = models.DateTimeField(null=True, blank=True)
+    last_activity_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ["-updated_at"]

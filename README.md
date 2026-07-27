@@ -30,6 +30,8 @@ Home Sweet Home uses standards-based Web Push to notify other members of a house
 
 Permission and subscriptions are per device and per browser. Every household member must enable notifications separately on each installed device or browser. Signing out does not necessarily revoke operating-system notification permission, so use **Disable Notifications** before removing a personal device from someone else's account.
 
+To avoid notification noise, each receiving device tracks household grocery activity. The first grocery change sends a notification; later changes reset a ten-minute quiet period without sending more notifications. The first new change after ten minutes of inactivity sends a new notification.
+
 ### Generate local VAPID keys
 
 Web Push uses one VAPID key pair per environment. Generate a local pair from the repository root on the host, after activating `.venv` and installing the requirements. Do not run this command through `docker compose exec`: the development container uses an unprivileged user that cannot write to the bind-mounted project directory.

@@ -9,7 +9,7 @@
     <a class="back-link" href="{% url 'shopping:history' %}">← History</a>
     <header class="detail-heading history-heading">
         <div class="detail-heading__identity">
-            <span class="detail-heading__icon" aria-hidden="true">{{ shopping_list.icon }}</span>
+            <span class="detail-heading__icon" aria-hidden="true">{% include "shopping/partials/list_icon.html" %}</span>
             <div>
                 <p class="eyebrow">Completed grocery list</p>
                 <h1>{{ shopping_list.name }}</h1>

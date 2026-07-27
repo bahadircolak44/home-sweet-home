@@ -1,14 +1,16 @@
 {% load static %}
-const CACHE_NAME = "home-sweet-home-static-v6";
+const CACHE_NAME = "home-sweet-home-static-v8";
 const STATIC_ASSETS = [
-    "{% static 'css/app.css' %}?v=6",
+    "{% static 'css/app.css' %}?v=8",
     "{% static 'js/app.js' %}?v=6",
     "{% static 'manifest.webmanifest' %}",
     "{% static 'icons/favicon.ico' %}",
     "{% static 'icons/favicon-32.png' %}",
     "{% static 'icons/apple-touch-icon.png' %}",
     "{% static 'icons/icon-192.png' %}",
-    "{% static 'icons/icon-512.png' %}"
+    "{% static 'icons/icon-512.png' %}",
+    "{% static 'icons/albert-heijn.svg' %}",
+    "{% static 'icons/jumbo.png' %}"
 ];
 
 self.addEventListener("install", (event) => {

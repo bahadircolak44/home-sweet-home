@@ -1,0 +1,6 @@
+{% load static %}
+{% if shopping_list.icon_asset %}
+    <img class="store-list-icon" src="{% static shopping_list.icon_asset %}" alt="">
+{% else %}
+    {{ shopping_list.icon }}
+{% endif %}

@@ -183,6 +183,34 @@ def update_item(*, item, text, quantity, description, user):
 
 
 @transaction.atomic
+def adjust_item_quantity(*, item, delta, user):
+    locked_list = ShoppingList.objects.select_for_update().get(pk=item.shopping_list_id)
+    if locked_list.status != ShoppingList.Status.ACTIVE:
+        raise InvalidShoppingOperation("Completed lists are read-only.")
+    locked_item = ShoppingItem.objects.select_for_update().get(pk=item.pk)
+    if locked_item.is_purchased:
+        raise InvalidShoppingOperation("Purchased items cannot have their quantity changed.")
+
+    quantity = locked_item.quantity + delta
+    if quantity < 1:
+        raise InvalidShoppingOperation("Item quantity cannot be less than one.")
+
+    locked_item.quantity = quantity
+    locked_item.save(update_fields=["quantity", "updated_at"])
+    touch_list(locked_list.pk)
+    _schedule_list_notification(
+        shopping_list=locked_list,
+        user=user,
+        body=(
+            f"{_actor_name(user)} changed the quantity of {locked_item.text} "
+            f"to {locked_item.quantity}."
+        ),
+        url=reverse("shopping:list_detail", args=[locked_list.pk]),
+    )
+    return locked_item
+
+
+@transaction.atomic
 def toggle_item(*, item, user):
     locked_list = ShoppingList.objects.select_for_update().get(pk=item.shopping_list_id)
     if locked_list.status != ShoppingList.Status.ACTIVE:

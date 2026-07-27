@@ -8,7 +8,7 @@
     <a class="back-link" href="{% url 'shopping:list_detail' list_id=shopping_list.pk %}">← Back to {{ shopping_list.name }}</a>
     <div class="page-heading page-heading--compact">
         <div>
-            <p class="eyebrow">{{ shopping_list.icon }} {{ shopping_list.name }}</p>
+            <p class="eyebrow"><span class="eyebrow__icon" aria-hidden="true">{% include "shopping/partials/list_icon.html" %}</span> {{ shopping_list.name }}</p>
             <h1>Edit Grocery Item</h1>
         </div>
     </div>

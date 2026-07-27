@@ -8,7 +8,7 @@
     <div class="confirmation-page">
       <div class="confirmation-card confirmation-card--danger">
         <span class="confirmation-card__icon" aria-hidden="true">🗑️</span>
-        <p class="eyebrow">{{ shopping_list.icon }} {{ shopping_list.name }}</p>
+        <p class="eyebrow"><span class="eyebrow__icon" aria-hidden="true">{% include "shopping/partials/list_icon.html" %}</span> {{ shopping_list.name }}</p>
         <h1>Delete this list?</h1>
         <p>This permanently deletes the grocery list and every item in it. This action cannot be undone.</p>
         <div class="confirmation-actions">

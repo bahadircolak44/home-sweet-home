@@ -1505,6 +1505,69 @@ h2 {
     .history-heading .read-only-badge {
         margin: 1rem 0 0 70px;
     }
+
+    .quick-add-panel {
+        min-width: 0;
+        max-width: 100%;
+        padding-top: 0.85rem;
+        overflow: hidden;
+    }
+
+    .quick-add-panel__heading {
+        align-items: center;
+        margin-bottom: 0.55rem;
+        min-width: 0;
+    }
+
+    .quick-add-panel__heading .eyebrow {
+        display: none;
+    }
+
+    .quick-add-panel__heading h2 {
+        font-size: 1rem;
+    }
+
+    .quick-add-items {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        margin: 0;
+        padding: 0;
+        gap: 0.45rem;
+        overflow: visible;
+    }
+
+    .quick-add-form {
+        min-width: 0;
+        max-width: 100%;
+    }
+
+    .quick-add-button {
+        justify-content: space-between;
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+        min-height: 44px;
+        padding-left: 0.65rem;
+    }
+
+    .quick-add-button > span:first-child {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .quick-add-button__plus {
+        flex: 0 0 auto;
+        width: 26px;
+        height: 26px;
+        margin-left: 0.3rem;
+    }
+}
+
+@media (min-width: 480px) and (max-width: 660px) {
+    .quick-add-items {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
 }
 
 @media (max-width: 420px) {
@@ -1571,6 +1634,10 @@ h2 {
 
     .add-item-form__button span {
         font-size: 1.5rem;
+    }
+
+    .quick-add-panel__heading > p {
+        display: none;
     }
 
     .form-actions .button,

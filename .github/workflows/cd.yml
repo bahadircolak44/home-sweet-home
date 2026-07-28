@@ -104,10 +104,20 @@ jobs:
             VAPID_PUBLIC_KEY=${{ vars.VAPID_PUBLIC_KEY }}
             VAPID_PRIVATE_KEY_PATH=/secrets/vapid/private_key.pem
             VAPID_SUBJECT=${{ vars.VAPID_SUBJECT }}
+            GOOGLE_OAUTH_ENABLED=True
+            GOOGLE_CALENDAR_ENABLED=True
+            GOOGLE_CALENDAR_EVENT_DURATION_MINUTES=30
+            PASSWORD_LOGIN_ENABLED=True
           secrets: |-
             DATABASE_URL=projects/${{ vars.GCP_PROJECT_ID }}/secrets/home-sweet-home-database-url/versions/latest
             SECRET_KEY=projects/${{ vars.GCP_PROJECT_ID }}/secrets/home-sweet-home-django-secret-key/versions/latest
             /secrets/vapid/private_key.pem=projects/${{ vars.GCP_PROJECT_ID }}/secrets/home-sweet-home-vapid-private-key/versions/1
+            GOOGLE_OAUTH_CLIENT_ID=projects/${{ vars.GCP_PROJECT_ID }}/secrets/home-sweet-home-google-oauth-client-id/versions/latest
+            GOOGLE_OAUTH_CLIENT_SECRET=projects/${{ vars.GCP_PROJECT_ID }}/secrets/home-sweet-home-google-oauth-client-secret/versions/latest
+            GOOGLE_OAUTH_REDIRECT_URI=projects/${{ vars.GCP_PROJECT_ID }}/secrets/home-sweet-home-google-oauth-redirect-uri/versions/latest
+            GOOGLE_ALLOWED_EMAILS=projects/${{ vars.GCP_PROJECT_ID }}/secrets/home-sweet-home-google-allowed-emails/versions/latest
+            GOOGLE_LEGACY_USER_MAP=projects/${{ vars.GCP_PROJECT_ID }}/secrets/home-sweet-home-google-legacy-user-map/versions/latest
+            GOOGLE_TOKEN_ENCRYPTION_KEY=projects/${{ vars.GCP_PROJECT_ID }}/secrets/home-sweet-home-google-token-encryption-key/versions/latest
 
       - name: Add deployment URL to the job summary
         env:

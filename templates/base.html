@@ -30,6 +30,7 @@
                     <span class="account-name" title="Signed in as {{ user.get_username }}">
                         {{ user.get_full_name|default:user.get_username }}
                     </span>
+                    <a class="text-button" href="{% url 'google_integration:status' %}">Account</a>
                     <form method="post" action="{% url 'logout' %}">
                         {% csrf_token %}
                         <button class="text-button" type="submit">Sign Out</button>

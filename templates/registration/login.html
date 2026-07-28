@@ -7,7 +7,12 @@
     <div class="auth-card__icon" aria-hidden="true">🏠</div>
     <p class="eyebrow">Welcome home</p>
     <h1>Home Sweet Home</h1>
-    <p class="auth-card__intro">Sign in to share grocery lists with your household.</p>
+    <p class="auth-card__intro">Sign in to share your household home.</p>
+
+    {% if google_oauth_enabled %}
+        <a class="button button--primary button--full" href="{% url 'google_integration:start' %}{% if next %}?next={{ next|urlencode }}{% endif %}">Continue with Google</a>
+        <p class="auth-card__help">Sign in with your approved Google account and connect Google Calendar.</p>
+    {% endif %}
 
     {% if form.non_field_errors %}
         <div class="form-alert" role="alert">
@@ -15,6 +20,9 @@
         </div>
     {% endif %}
 
+    {% if password_login_enabled %}
+    <details{% if not google_oauth_enabled %} open{% endif %}>
+        <summary>Use password instead</summary>
     <form method="post" class="stack-form" novalidate>
         {% csrf_token %}
         {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
@@ -30,6 +38,8 @@
         </div>
         <button class="button button--primary button--full" type="submit">Sign In</button>
     </form>
+    </details>
+    {% endif %}
     <p class="auth-card__help">Accounts are managed privately by your household administrator.</p>
 </section>
 {% endblock %}

@@ -73,19 +73,33 @@ def talk_later_summary_for_user(user):
 
 @transaction.atomic
 def create_topic(*, household, title, notes, scheduled_for, user):
-    return DiscussionTopic.objects.create(
+    calendar_sync_status = DiscussionTopic.CalendarSyncStatus.NOT_SCHEDULED
+    if scheduled_for is not None and settings.GOOGLE_CALENDAR_ENABLED:
+        calendar_sync_status = DiscussionTopic.CalendarSyncStatus.PENDING
+    topic = DiscussionTopic.objects.create(
         household=household,
         title=title,
         notes=notes,
         scheduled_for=scheduled_for,
         created_by=user,
+        calendar_sync_status=calendar_sync_status,
     )
+    if scheduled_for is not None and settings.GOOGLE_CALENDAR_ENABLED:
+        from google_integration.services import queue_topic_calendar_sync
+
+        queue_topic_calendar_sync(topic.pk)
+    return topic
 
 
 @transaction.atomic
 def update_topic(*, topic, title, notes, scheduled_for, user):
     locked_topic = DiscussionTopic.objects.select_for_update().get(pk=topic.pk)
     schedule_changed = locked_topic.scheduled_for != scheduled_for
+    calendar_fields_changed = (
+        locked_topic.title != title
+        or locked_topic.notes != notes
+        or schedule_changed
+    )
     locked_topic.title = title
     locked_topic.notes = notes
     locked_topic.scheduled_for = scheduled_for
@@ -101,7 +115,20 @@ def update_topic(*, topic, title, notes, scheduled_for, user):
                 "reminder_sent_at",
             ]
         )
+    should_sync_calendar = (
+        settings.GOOGLE_CALENDAR_ENABLED
+        and calendar_fields_changed
+        and (locked_topic.scheduled_for is not None or locked_topic.google_calendar_event_id)
+    )
+    if should_sync_calendar:
+        locked_topic.calendar_sync_status = DiscussionTopic.CalendarSyncStatus.PENDING
+        locked_topic.calendar_sync_error = ""
+        update_fields.extend(["calendar_sync_status", "calendar_sync_error"])
     locked_topic.save(update_fields=update_fields)
+    if should_sync_calendar:
+        from google_integration.services import queue_topic_calendar_sync
+
+        queue_topic_calendar_sync(locked_topic.pk)
     return locked_topic
 
 
@@ -124,8 +151,17 @@ def toggle_topic(*, topic, user):
 
 @transaction.atomic
 def delete_topic(*, topic, user):
-    locked_topic = DiscussionTopic.objects.select_for_update().get(pk=topic.pk)
-    locked_topic.delete()
+    topic_to_delete = DiscussionTopic.objects.get(pk=topic.pk)
+    if topic_to_delete.google_calendar_event_id:
+        from google_integration.services import CalendarSyncError, delete_topic_calendar_event
+
+        try:
+            delete_topic_calendar_event(topic_to_delete, raise_on_error=True)
+        except CalendarSyncError as error:
+            raise InvalidDiscussionOperation(str(error)) from error
+    with transaction.atomic():
+        locked_topic = DiscussionTopic.objects.select_for_update().get(pk=topic.pk)
+        locked_topic.delete()
 
 
 def _eligible_due_topics(*, now):

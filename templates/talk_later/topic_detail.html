@@ -42,6 +42,32 @@
         {% endif %}
     </section>
 
+    {% if google_calendar_enabled %}
+    <section class="panel talk-later-detail">
+        <h2>Google Calendar</h2>
+        {% if not topic.scheduled_for %}
+            <p>Not scheduled — no Calendar event</p>
+        {% elif topic.calendar_sync_status == 'PENDING' %}
+            <p>Calendar sync pending</p>
+        {% elif topic.calendar_sync_status == 'SYNCED' %}
+            <p>Added to Google Calendar</p>
+            {% if topic.google_calendar_html_link %}<p><a class="button button--secondary button--small" href="{{ topic.google_calendar_html_link }}" target="_blank" rel="noopener">Open in Google Calendar</a></p>{% endif %}
+        {% elif topic.calendar_sync_status == 'REAUTHORIZATION_REQUIRED' %}
+            <p>Reconnect Google Calendar to continue syncing</p>
+            <p><a class="button button--secondary button--small" href="{% url 'google_integration:reconnect' %}">Reconnect Google Calendar</a></p>
+        {% else %}
+            <p>Calendar sync failed</p>
+        {% endif %}
+        {% if calendar_attendee_warning %}<p>{{ calendar_attendee_warning }}</p>{% endif %}
+        {% if topic.scheduled_for and topic.calendar_sync_status != 'SYNCED' %}
+            <form method="post" action="{% url 'talk_later:topic_calendar_retry' topic_id=topic.pk %}">
+                {% csrf_token %}
+                <button class="button button--secondary button--small" type="submit">Retry Calendar Sync</button>
+            </form>
+        {% endif %}
+    </section>
+    {% endif %}
+
     <section class="list-actions" aria-labelledby="topic-actions-title">
         <div>
             <h2 id="topic-actions-title">{% if topic.is_done %}Discuss this again?{% else %}Finished discussing it?{% endif %}</h2>

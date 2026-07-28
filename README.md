@@ -24,6 +24,134 @@ Household Chores uses focused, shared sessions such as `This Week` or `Weekend C
 
 Talk Later is intentionally small: add a topic, optionally choose a local date and time, and mark it done after discussing it. Scheduled topics send one Web Push reminder to every subscribed device for current household members, including the person who created it. Marking a topic done prevents a future reminder; reopening an already processed reminder does not send it again unless the topic is explicitly rescheduled. Notes stay in the app and are never included in the notification.
 
+## Google Sign-In and Google Calendar
+
+Google Sign-In links an approved Google account to an existing Django user; it never creates a new Home Sweet Home user. Existing user IDs, usernames, password hashes, permissions, staff/superuser state, household memberships, and application data remain in place. This feature is disabled by default. Password sign-in remains available as a fallback until every user has linked and tested Google sign-in.
+
+The first Google authorization requests only `openid`, `email`, `profile`, and Google Calendar event ownership access. The server uses the OAuth 2.0 authorization-code flow with a session state value, backend ID-token verification, offline access, and encrypted refresh-token storage. No OAuth token is sent to browser storage. Only accounts in `GOOGLE_ALLOWED_EMAILS` can proceed, and the Google email must be verified.
+
+### Existing-user linking
+
+The integration resolves a verified, allowlisted Google identity in this order:
+
+1. An existing matching Google subject.
+2. An existing matching normalized Google email when its subject is not conflicting.
+3. The explicit `GOOGLE_LEGACY_USER_MAP` email-to-username mapping.
+4. Exactly one existing Django user with a case-insensitive matching email address.
+
+An unknown or ambiguous account is rejected with no automatic registration. Use the explicit legacy map for the two current household users even if their local Django email fields happen to match today; it makes rollout deterministic.
+
+### Local configuration
+
+Add the following to local `.env` only after creating a Google Web OAuth client. Keep the feature disabled until every required value is present.
+
+```dotenv
+GOOGLE_OAUTH_ENABLED=False
+GOOGLE_CALENDAR_ENABLED=False
+
+GOOGLE_OAUTH_CLIENT_ID=
+GOOGLE_OAUTH_CLIENT_SECRET=
+GOOGLE_OAUTH_REDIRECT_URI=http://localhost:8000/accounts/google/callback/
+
+GOOGLE_ALLOWED_EMAILS=first.person@gmail.com,second.person@gmail.com
+GOOGLE_LEGACY_USER_MAP=first.person@gmail.com:existing_username,second.person@gmail.com:other_username
+GOOGLE_TOKEN_ENCRYPTION_KEY=
+
+GOOGLE_CALENDAR_EVENT_DURATION_MINUTES=30
+PASSWORD_LOGIN_ENABLED=True
+```
+
+Generate the token-encryption key once and store it safely:
+
+```bash
+docker compose run --rm -T web python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+```
+
+`GOOGLE_TOKEN_ENCRYPTION_KEY` must be a valid Fernet key. The application intentionally fails startup when OAuth is enabled and the key is missing or invalid. Never generate a replacement key during application startup, commit it, or write it to logs. Changing or losing it means every user must reconnect because previously stored refresh tokens cannot be decrypted.
+
+When OAuth is enabled, Django also requires the client ID, client secret, redirect URI, a non-empty allowlist, and a valid Fernet key. Calendar integration additionally requires OAuth. The legacy map rejects malformed entries, duplicate emails, and duplicate usernames at startup.
+
+### Google Cloud setup
+
+1. Create or select the Google Cloud project for this application.
+2. Enable **Google Calendar API**.
+3. Configure Google Auth Platform branding, audience, contact details, and only the required scopes listed above.
+4. While the app is in Testing, add the two approved Google accounts as test users. Testing authorizations can expire, so reconnect may be required.
+5. Create a **Web application** OAuth client.
+6. Add exact authorized redirect URIs. For example:
+
+   ```text
+   http://localhost:8000/accounts/google/callback/
+   https://your-domain.example/accounts/google/callback/
+   ```
+
+   Google requires an exact match, including scheme, host, path, and trailing slash.
+7. Store the OAuth client secret and Fernet key in Secret Manager. Do not put them in GitHub variables, the repository, browser code, or build logs.
+8. Configure the production values as Cloud Run environment variables or Secret Manager references. Use an HTTPS production callback URL.
+
+Do not use Firebase Authentication, service accounts, Workspace domain-wide delegation, or another Google API for this feature. Move the OAuth app out of Testing only when the Google publishing/verification requirements for the selected audience are satisfied.
+
+### Sign-in and account recovery
+
+The login page shows **Continue with Google** as the primary action. Google consent is requested at initial setup, while ordinary later logins use granted scopes without forcing consent. If Google does not return a refresh token on the first connection, use **Reconnect Google Calendar** from Account settings; reconnect is an explicit action and requests consent again.
+
+Account settings shows the connected email and Calendar state. Disconnect requires a checked confirmation and a CSRF-protected POST. It attempts Google token revocation, removes the local connection, and keeps the Django user and all Home Sweet Home data. Disconnect does not delete existing Calendar events, so they may remain in Google Calendar. Normal logout never revokes the connection.
+
+### Talk Later event behavior
+
+When Google Calendar is enabled, saving a scheduled Talk Later topic creates one timed event in the creator’s primary Calendar. The creator remains the organizer even if another household member edits the topic. Other current household members with connected, verified Google email addresses are attendees and receive real invitations through `sendUpdates="all"`. The creator is never added as an attendee, and no organizer event is directly duplicated into attendee calendars.
+
+The event includes the topic title, optional notes, a Home Sweet Home marker, an absolute topic link, the Django time zone, and the configured duration. Google default reminders are disabled because Home Sweet Home Web Push remains responsible for the exact-time device reminder. The event does not create Google Meet links.
+
+- Editing title, notes, time, or eligible attendees patches the same event and preserves attendee RSVP state.
+- Removing the schedule deletes the remote event with `sendUpdates="all"`.
+- Marking done or not done does not alter the Calendar event.
+- Deleting a topic first deletes/cancels the remote event. If that fails temporarily, the local topic is retained and can be retried; Google event-not-found is safe to treat as already deleted.
+- If the creator has no Calendar connection, a member lacks a connection, or Google is unavailable, the local topic remains usable. The topic detail page exposes safe status, retry, and reconnect actions.
+
+When a household member connects after a topic has been scheduled, Home Sweet Home attempts to refresh future scheduled events in that household so the person can be added as an attendee using the organizer’s credentials.
+
+### Existing-topic synchronization
+
+No Google call is made during migration. After both users connect, synchronize existing future topics explicitly:
+
+```bash
+docker compose exec web python manage.py sync_talk_later_google_calendar
+```
+
+Useful bounded variants are:
+
+```bash
+docker compose exec web python manage.py sync_talk_later_google_calendar --user existing_username
+docker compose exec web python manage.py sync_talk_later_google_calendar --household 1 --limit 25
+docker compose exec web python manage.py sync_talk_later_google_calendar --force
+docker compose exec web python manage.py sync_talk_later_google_calendar --no-future-only
+```
+
+The command reports safe counts only; it never prints notes, attendee emails, or OAuth data.
+
+### Deployment and rollout
+
+1. Back up the production database and record the current user IDs, usernames, emails, permissions, and household memberships.
+2. Deploy the code and run migrations while Google OAuth remains disabled.
+3. Verify existing password login, Grocery Lists, Chores, Talk Later, PWA, and Web Push.
+4. Configure the Google Cloud client, Secret Manager secrets, allowlist, and explicit legacy map.
+5. Enable Google OAuth and Calendar with `PASSWORD_LOGIN_ENABLED=True`.
+6. Complete first Google login for both existing users. Confirm that each maps to the expected existing user and that Calendar access is connected.
+7. Run the existing-topic synchronization command for future topics.
+8. Test event creation, invitation delivery, edit/reschedule, unschedule, retry, reconnect, marking done, and deletion.
+9. Only after both users are successful may production set `PASSWORD_LOGIN_ENABLED=False`. Password hashes remain in the database so fallback can be re-enabled later.
+
+### Troubleshooting
+
+- **Redirect URI mismatch:** Copy the configured redirect URI exactly into Google Cloud and the runtime environment.
+- **Account is not linked:** Check the normalized allowlist and `GOOGLE_LEGACY_USER_MAP`, then confirm the mapped Django username exists.
+- **No refresh token:** Use the explicit reconnect action, which uses consent; do not repeatedly force consent on ordinary login.
+- **Reconnect required:** Google access was revoked, expired, or the encryption key cannot decrypt the stored token. Reconnect the original topic creator’s Google account.
+- **Member did not receive an invitation:** The person must be a current member of the same household and have a linked, verified Google email. Cross-household and unconnected users are intentionally excluded.
+- **Calendar sync failed:** The Talk Later topic is still saved. Use the topic retry action after fixing the connection or Google API configuration.
+- **Encryption key changed:** Old refresh tokens are unrecoverable. Restore the old key from Secret Manager or have each user reconnect.
+
 ## Progressive Web App support
 
 Home Sweet Home includes a web manifest, original application icons, and a minimal service worker. The service worker caches only local CSS, JavaScript, the manifest, and application icons. Authenticated pages, forms, and HTMX mutation responses are never cached, and full offline grocery-list functionality is not implemented.

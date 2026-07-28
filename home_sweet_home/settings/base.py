@@ -1,7 +1,9 @@
 import os
 from pathlib import Path
+from urllib.parse import urlparse
 
 import dj_database_url
+from cryptography.fernet import Fernet
 from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
@@ -17,6 +19,38 @@ def env_list(name, default=""):
     return [
         value.strip() for value in os.getenv(name, default).split(",") if value.strip()
     ]
+
+
+def _normalized_email(value):
+    return value.strip().lower()
+
+
+def _google_legacy_user_map(value):
+    mapping = {}
+    usernames = set()
+    for entry in (item.strip() for item in value.split(",") if item.strip()):
+        if entry.count(":") != 1:
+            raise ImproperlyConfigured(
+                "GOOGLE_LEGACY_USER_MAP entries must use email:username."
+            )
+        raw_email, raw_username = entry.split(":", 1)
+        email = _normalized_email(raw_email)
+        username = raw_username.strip()
+        if not email or "@" not in email or not username:
+            raise ImproperlyConfigured(
+                "GOOGLE_LEGACY_USER_MAP entries must use a valid email and username."
+            )
+        if email in mapping:
+            raise ImproperlyConfigured(
+                "GOOGLE_LEGACY_USER_MAP contains a duplicate email."
+            )
+        if username in usernames:
+            raise ImproperlyConfigured(
+                "GOOGLE_LEGACY_USER_MAP contains a duplicate username."
+            )
+        mapping[email] = username
+        usernames.add(username)
+    return mapping
 
 
 SECRET_KEY = os.getenv("SECRET_KEY", "unsafe-local-development-key")
@@ -36,6 +70,7 @@ INSTALLED_APPS = [
     "shopping.apps.ShoppingConfig",
     "chores.apps.ChoresConfig",
     "talk_later.apps.TalkLaterConfig",
+    "google_integration.apps.GoogleIntegrationConfig",
 ]
 
 MIDDLEWARE = [
@@ -109,6 +144,61 @@ LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "home"
 LOGOUT_REDIRECT_URL = "login"
 URLIZE_ASSUME_HTTPS = True
+
+PASSWORD_LOGIN_ENABLED = env_bool("PASSWORD_LOGIN_ENABLED", True)
+GOOGLE_OAUTH_ENABLED = env_bool("GOOGLE_OAUTH_ENABLED", False)
+GOOGLE_CALENDAR_ENABLED = env_bool("GOOGLE_CALENDAR_ENABLED", False)
+GOOGLE_OAUTH_CLIENT_ID = os.getenv("GOOGLE_OAUTH_CLIENT_ID", "").strip()
+GOOGLE_OAUTH_CLIENT_SECRET = os.getenv("GOOGLE_OAUTH_CLIENT_SECRET", "").strip()
+GOOGLE_OAUTH_REDIRECT_URI = os.getenv("GOOGLE_OAUTH_REDIRECT_URI", "").strip()
+GOOGLE_ALLOWED_EMAILS = tuple(
+    dict.fromkeys(_normalized_email(value) for value in env_list("GOOGLE_ALLOWED_EMAILS"))
+)
+GOOGLE_LEGACY_USER_MAP = _google_legacy_user_map(
+    os.getenv("GOOGLE_LEGACY_USER_MAP", "")
+)
+GOOGLE_TOKEN_ENCRYPTION_KEY = os.getenv("GOOGLE_TOKEN_ENCRYPTION_KEY", "").strip()
+GOOGLE_CALENDAR_EVENT_DURATION_MINUTES = int(
+    os.getenv("GOOGLE_CALENDAR_EVENT_DURATION_MINUTES", "30")
+)
+
+if GOOGLE_CALENDAR_EVENT_DURATION_MINUTES <= 0:
+    raise ImproperlyConfigured(
+        "GOOGLE_CALENDAR_EVENT_DURATION_MINUTES must be a positive integer."
+    )
+
+if GOOGLE_CALENDAR_ENABLED and not GOOGLE_OAUTH_ENABLED:
+    raise ImproperlyConfigured("Google Calendar requires Google OAuth to be enabled.")
+
+if GOOGLE_OAUTH_ENABLED:
+    required_google_settings = {
+        "GOOGLE_OAUTH_CLIENT_ID": GOOGLE_OAUTH_CLIENT_ID,
+        "GOOGLE_OAUTH_CLIENT_SECRET": GOOGLE_OAUTH_CLIENT_SECRET,
+        "GOOGLE_OAUTH_REDIRECT_URI": GOOGLE_OAUTH_REDIRECT_URI,
+        "GOOGLE_TOKEN_ENCRYPTION_KEY": GOOGLE_TOKEN_ENCRYPTION_KEY,
+    }
+    missing_google_settings = [
+        name for name, value in required_google_settings.items() if not value
+    ]
+    if missing_google_settings:
+        raise ImproperlyConfigured(
+            "Google OAuth is enabled but these settings are missing: "
+            + ", ".join(missing_google_settings)
+            + "."
+        )
+    parsed_redirect_uri = urlparse(GOOGLE_OAUTH_REDIRECT_URI)
+    if not parsed_redirect_uri.scheme or not parsed_redirect_uri.netloc:
+        raise ImproperlyConfigured("GOOGLE_OAUTH_REDIRECT_URI must be an absolute URL.")
+    if not GOOGLE_ALLOWED_EMAILS:
+        raise ImproperlyConfigured(
+            "GOOGLE_ALLOWED_EMAILS must not be empty when Google OAuth is enabled."
+        )
+    try:
+        Fernet(GOOGLE_TOKEN_ENCRYPTION_KEY.encode())
+    except (TypeError, ValueError) as error:
+        raise ImproperlyConfigured(
+            "GOOGLE_TOKEN_ENCRYPTION_KEY must be a valid Fernet key."
+        ) from error
 
 PUSH_NOTIFICATIONS_ENABLED = env_bool("PUSH_NOTIFICATIONS_ENABLED", False)
 TALK_LATER_REMINDER_JOB_TOKEN = os.getenv("TALK_LATER_REMINDER_JOB_TOKEN", "").strip()

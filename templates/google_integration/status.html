@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}Google Calendar · Home Sweet Home{% endblock %}
+
+{% block content %}
+<div class="detail-page">
+    <a class="back-link" href="{% url 'home' %}">← Dashboard</a>
+    <header class="detail-heading">
+        <div class="detail-heading__identity">
+            <span class="detail-heading__icon" aria-hidden="true">📅</span>
+            <div>
+                <p class="eyebrow">Account settings</p>
+                <h1>Google Calendar</h1>
+            </div>
+        </div>
+    </header>
+
+    <section class="panel talk-later-detail">
+        {% if not google_oauth_enabled %}
+            <p>Google sign-in is not enabled for this environment.</p>
+        {% elif connection %}
+            <dl>
+                <div><dt>Connected account</dt><dd>{{ connection.email }}</dd></div>
+                <div><dt>Calendar access</dt><dd>{% if connection.reauthorization_required or not connection.has_refresh_token %}Reconnect required{% elif google_calendar_enabled %}Connected{% else %}Calendar integration is disabled{% endif %}</dd></div>
+            </dl>
+            {% if connection.reauthorization_required or not connection.has_refresh_token %}
+                <p class="field-error">Reconnect Google Calendar to continue syncing.</p>
+            {% endif %}
+            <p><a class="button button--secondary" href="{% url 'google_integration:reconnect' %}">Reconnect Google Calendar</a></p>
+            <form method="post" action="{% url 'google_integration:disconnect' %}" class="stack-form">
+                {% csrf_token %}
+                <label><input type="checkbox" name="confirm_disconnect" value="on"> I understand that existing Google Calendar events may remain.</label>
+                <button class="button button--secondary" type="submit">Disconnect Google</button>
+            </form>
+        {% else %}
+            <p>Google Calendar is not connected.</p>
+            {% if google_oauth_enabled %}<a class="button button--primary" href="{% url 'google_integration:reconnect' %}">Connect Google Calendar</a>{% endif %}
+        {% endif %}
+    </section>
+</div>
+{% endblock %}

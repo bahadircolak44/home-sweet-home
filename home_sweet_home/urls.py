@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.contrib.auth import views as auth_views
 from django.urls import include, path
 
-from shopping.forms import HomeAuthenticationForm
+from google_integration.views import HomeLoginView
 from shopping import views as shopping_views
 from talk_later import views as talk_later_views
 
@@ -11,13 +11,11 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path(
         "accounts/login/",
-        auth_views.LoginView.as_view(
-            authentication_form=HomeAuthenticationForm,
-            redirect_authenticated_user=True,
-        ),
+        HomeLoginView.as_view(),
         name="login",
     ),
     path("accounts/logout/", auth_views.LogoutView.as_view(), name="logout"),
+    path("accounts/google/", include("google_integration.urls")),
     path("service-worker.js", shopping_views.service_worker, name="service_worker"),
     path("groceries/", include("shopping.urls")),
     path("chores/", include("chores.urls")),

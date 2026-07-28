@@ -11,6 +11,13 @@ class DiscussionTopicQuerySet(models.QuerySet):
 
 
 class DiscussionTopic(models.Model):
+    class CalendarSyncStatus(models.TextChoices):
+        NOT_SCHEDULED = "NOT_SCHEDULED", "Not scheduled"
+        PENDING = "PENDING", "Pending"
+        SYNCED = "SYNCED", "Synced"
+        FAILED = "FAILED", "Failed"
+        REAUTHORIZATION_REQUIRED = "REAUTHORIZATION_REQUIRED", "Reconnect required"
+
     household = models.ForeignKey(
         Household, on_delete=models.CASCADE, related_name="discussion_topics"
     )
@@ -36,6 +43,17 @@ class DiscussionTopic(models.Model):
     reminder_claimed_at = models.DateTimeField(null=True, blank=True)
     reminder_processed_at = models.DateTimeField(null=True, blank=True)
     reminder_sent_at = models.DateTimeField(null=True, blank=True)
+    google_calendar_event_id = models.CharField(max_length=255, blank=True, default="")
+    google_calendar_html_link = models.URLField(max_length=500, blank=True, default="")
+    google_calendar_id = models.CharField(max_length=100, default="primary")
+    calendar_sync_status = models.CharField(
+        max_length=32,
+        choices=CalendarSyncStatus.choices,
+        default=CalendarSyncStatus.NOT_SCHEDULED,
+    )
+    calendar_sync_error = models.TextField(blank=True, default="")
+    calendar_last_attempt_at = models.DateTimeField(null=True, blank=True)
+    calendar_synced_at = models.DateTimeField(null=True, blank=True)
 
     objects = DiscussionTopicQuerySet.as_manager()
 
@@ -58,6 +76,10 @@ class DiscussionTopic(models.Model):
             models.Index(
                 fields=["household", "is_done", "scheduled_for"],
                 name="talk_later_upcoming_idx",
+            ),
+            models.Index(
+                fields=["calendar_sync_status", "scheduled_for"],
+                name="talk_later_calendar_idx",
             ),
         ]
 

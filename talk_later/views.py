@@ -25,6 +25,7 @@ from .services import (
     upcoming_topics_for_user,
     update_topic,
 )
+from google_integration.services import calendar_attendee_warning_for_topic, sync_topic_calendar_event
 
 logger = logging.getLogger(__name__)
 
@@ -133,7 +134,19 @@ def topic_create(request):
 @login_required
 def topic_detail(request, topic_id):
     topic = get_object_or_404(topics_for_user(request.user), pk=topic_id)
-    return render(request, "talk_later/topic_detail.html", {"topic": topic})
+    return render(
+        request,
+        "talk_later/topic_detail.html",
+        {
+            "topic": topic,
+            "google_calendar_enabled": settings.GOOGLE_CALENDAR_ENABLED,
+            "calendar_attendee_warning": (
+                calendar_attendee_warning_for_topic(topic)
+                if settings.GOOGLE_CALENDAR_ENABLED and topic.scheduled_for
+                else ""
+            ),
+        },
+    )
 
 
 @login_required
@@ -196,6 +209,24 @@ def topic_delete(request, topic_id):
         messages.success(request, "Talk Later topic deleted.")
         return redirect("talk_later:topic_index")
     return render(request, "talk_later/topic_confirm_delete.html", {"topic": topic})
+
+
+@login_required
+@require_POST
+def topic_calendar_retry(request, topic_id):
+    topic = get_object_or_404(topics_for_user(request.user), pk=topic_id)
+    if not settings.GOOGLE_CALENDAR_ENABLED:
+        messages.error(request, "Google Calendar integration is not enabled.")
+        return redirect("talk_later:topic_detail", topic_id=topic.pk)
+    sync_topic_calendar_event(topic)
+    topic.refresh_from_db()
+    if topic.calendar_sync_status == topic.CalendarSyncStatus.SYNCED:
+        messages.success(request, "Google Calendar sync completed.")
+    elif topic.calendar_sync_status == topic.CalendarSyncStatus.NOT_SCHEDULED:
+        messages.success(request, "Google Calendar event removed.")
+    else:
+        messages.error(request, topic.calendar_sync_error or "Google Calendar sync failed.")
+    return redirect("talk_later:topic_detail", topic_id=topic.pk)
 
 
 @csrf_exempt

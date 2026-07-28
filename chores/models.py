@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.validators import MinValueValidator
 from django.db import models
 from django.db.models import Q
 
@@ -12,9 +13,13 @@ class ChoreSessionQuerySet(models.QuerySet):
 
     def with_task_counts(self):
         return self.annotate(
-            task_total=models.Count("tasks"),
-            done_total=models.Count("tasks", filter=Q(tasks__is_done=True)),
-            remaining_total=models.Count("tasks", filter=Q(tasks__is_done=False)),
+            task_total=models.Sum("tasks__quantity", default=0),
+            done_total=models.Sum(
+                "tasks__quantity", filter=Q(tasks__is_done=True), default=0
+            ),
+            remaining_total=models.Sum(
+                "tasks__quantity", filter=Q(tasks__is_done=False), default=0
+            ),
         )
 
 
@@ -111,7 +116,7 @@ class ChoreSession(models.Model):
         queryset = self.tasks.all()
         if done is not None:
             queryset = queryset.filter(is_done=done)
-        return queryset.count()
+        return queryset.aggregate(total=models.Sum("quantity"))["total"] or 0
 
     @property
     def total_task_count(self):
@@ -198,6 +203,9 @@ class ChoreTask(models.Model):
         ChoreSession, on_delete=models.CASCADE, related_name="tasks"
     )
     title = models.CharField(max_length=160)
+    quantity = models.PositiveIntegerField(
+        default=1, validators=[MinValueValidator(1)]
+    )
     assignee = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -238,6 +246,10 @@ class ChoreTask(models.Model):
                 fields=["session", "source_template"],
                 condition=Q(source_template__isnull=False),
                 name="chores_template_once_per_session",
+            ),
+            models.CheckConstraint(
+                condition=Q(quantity__gte=1),
+                name="chores_task_quantity_at_least_one",
             ),
             models.CheckConstraint(
                 condition=(

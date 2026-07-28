@@ -49,6 +49,23 @@
         </div>
         <span class="module-card__action">Open Household Chores</span>
     </a>
+
+    <a class="module-card module-card--active" href="{% url 'talk_later:topic_index' %}">
+        <div class="module-card__top">
+            <span class="module-card__icon" aria-hidden="true">💬</span>
+            <span class="module-card__arrow" aria-hidden="true">→</span>
+        </div>
+        <div>
+            <p class="eyebrow">Available now</p>
+            <h2>Talk Later</h2>
+            <p>Save topics to discuss together and get reminded at the right time.</p>
+        </div>
+        <div class="module-card__summary" aria-label="Talk Later summary">
+            <span><strong>{{ talk_later_summary.pending_topic_count }}</strong> pending topic{{ talk_later_summary.pending_topic_count|pluralize }}</span>
+            <span>{% if talk_later_summary.next_scheduled_for %}Next: {{ talk_later_summary.next_scheduled_for|date:"j M, H:i" }}{% else %}No reminder scheduled{% endif %}</span>
+        </div>
+        <span class="module-card__action">Open Talk Later</span>
+    </a>
 </section>
 
 <section class="install-panel" aria-labelledby="install-title">

@@ -102,8 +102,8 @@ def chore_summary_for_user(user):
         .filter(status=ChoreSession.Status.ACTIVE)
         .aggregate(
             active_session_count=models.Count("id", distinct=True),
-            remaining_task_count=models.Count(
-                "tasks", filter=models.Q(tasks__is_done=False)
+            remaining_task_count=models.Sum(
+                "tasks__quantity", filter=models.Q(tasks__is_done=False), default=0
             ),
         )
     )
@@ -165,7 +165,7 @@ def complete_session(*, session, user):
 
 
 @transaction.atomic
-def create_task(*, session, title, assignee, user):
+def create_task(*, session, title, assignee, user, quantity=1):
     locked_session = ChoreSession.objects.select_for_update().get(pk=session.pk)
     if locked_session.status != ChoreSession.Status.ACTIVE:
         raise InvalidChoreOperation("Completed sessions are read-only.")
@@ -173,6 +173,7 @@ def create_task(*, session, title, assignee, user):
     task = ChoreTask.objects.create(
         session=locked_session,
         title=title,
+        quantity=quantity,
         assignee=assignee,
         created_by=user,
     )
@@ -223,7 +224,7 @@ def create_task_from_template(*, session, template, user):
 
 
 @transaction.atomic
-def update_task(*, task, title, assignee, user):
+def update_task(*, task, title, quantity, assignee, user):
     locked_session = ChoreSession.objects.select_for_update().get(pk=task.session_id)
     if locked_session.status != ChoreSession.Status.ACTIVE:
         raise InvalidChoreOperation("Completed sessions are read-only.")
@@ -231,8 +232,9 @@ def update_task(*, task, title, assignee, user):
     _validate_assignee(household_id=locked_session.household_id, assignee=assignee)
     assignee_changed = locked_task.assignee_id != getattr(assignee, "pk", None)
     locked_task.title = title
+    locked_task.quantity = quantity
     locked_task.assignee = assignee
-    locked_task.save(update_fields=["title", "assignee", "updated_at"])
+    locked_task.save(update_fields=["title", "quantity", "assignee", "updated_at"])
     touch_session(locked_session.pk)
     if assignee_changed:
         _schedule_session_notification(
@@ -241,6 +243,23 @@ def update_task(*, task, title, assignee, user):
             body=_assignment_message(user=user, task=locked_task, assignee=assignee),
             url=reverse("chores:session_detail", args=[locked_session.pk]),
         )
+    return locked_task
+
+
+@transaction.atomic
+def adjust_task_quantity(*, task, delta, user):
+    locked_session = ChoreSession.objects.select_for_update().get(pk=task.session_id)
+    if locked_session.status != ChoreSession.Status.ACTIVE:
+        raise InvalidChoreOperation("Completed sessions are read-only.")
+    locked_task = ChoreTask.objects.select_for_update().get(pk=task.pk)
+    if locked_task.is_done:
+        raise InvalidChoreOperation("Completed task quantities cannot be changed.")
+    quantity = locked_task.quantity + delta
+    if quantity < 1:
+        raise InvalidChoreOperation("Task quantity cannot be less than one.")
+    locked_task.quantity = quantity
+    locked_task.save(update_fields=["quantity", "updated_at"])
+    touch_session(locked_session.pk)
     return locked_task
 
 

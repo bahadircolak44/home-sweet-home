@@ -21,6 +21,11 @@ urlpatterns = [
     ),
     path("tasks/<int:task_id>/edit/", views.task_edit, name="task_edit"),
     path("tasks/<int:task_id>/toggle/", views.task_toggle, name="task_toggle"),
+    path(
+        "tasks/<int:task_id>/quantity/",
+        views.task_quantity_adjust,
+        name="task_quantity_adjust",
+    ),
     path("tasks/<int:task_id>/delete/", views.task_delete, name="task_delete"),
     path("quick-list/", views.quick_list, name="quick_list"),
     path("quick-list/new/", views.template_create, name="template_create"),

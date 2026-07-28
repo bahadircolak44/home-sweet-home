@@ -44,7 +44,7 @@
                             <article class="history-item{% if task.is_done %} history-item--purchased{% endif %}">
                                 <span class="check-control" aria-hidden="true">{% if task.is_done %}✓{% else %}–{% endif %}</span>
                                 <div class="history-item__content">
-                                    <p class="history-item__text">{{ task.title }}</p>
+                                    <div class="history-item__title"><span class="quantity-badge">{{ task.quantity }}×</span><p class="history-item__text">{{ task.title }}</p></div>
                                     <p class="history-item__meta">{% if task.is_done %}Completed by {{ task.completed_by.get_full_name|default:task.completed_by.get_username }}{% else %}Not done{% endif %}</p>
                                 </div>
                             </article>

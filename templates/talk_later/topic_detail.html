@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}{{ topic.title }} · Talk Later · Home Sweet Home{% endblock %}
+
+{% block content %}
+<div class="detail-page">
+    <a class="back-link" href="{% url 'talk_later:topic_index' %}">← All Topics</a>
+    <header class="detail-heading">
+        <div class="detail-heading__identity">
+            <span class="detail-heading__icon" aria-hidden="true">💬</span>
+            <div>
+                <p class="eyebrow">Talk Later</p>
+                <h1>{{ topic.title }}</h1>
+                {% if topic.is_done %}<p class="talk-later-state talk-later-state--done">✓ Done</p>{% else %}<p class="talk-later-state">Pending discussion</p>{% endif %}
+            </div>
+        </div>
+        <a class="button button--secondary button--small" href="{% url 'talk_later:topic_edit' topic_id=topic.pk %}">Edit Topic</a>
+    </header>
+
+    <section class="panel talk-later-detail">
+        <dl>
+            <div>
+                <dt>Reminder</dt>
+                <dd>{% if topic.scheduled_for %}{{ topic.scheduled_for|date:"l, j F Y at H:i" }}{% else %}No reminder scheduled{% endif %}</dd>
+            </div>
+            <div>
+                <dt>Created by</dt>
+                <dd>{{ topic.created_by.get_full_name|default:topic.created_by.get_username }} · {{ topic.created_at|date:"j M Y, H:i" }}</dd>
+            </div>
+            {% if topic.is_done %}
+                <div>
+                    <dt>Completed</dt>
+                    <dd>{{ topic.completed_by.get_full_name|default:topic.completed_by.get_username }} · {{ topic.completed_at|date:"j M Y, H:i" }}</dd>
+                </div>
+            {% endif %}
+        </dl>
+        {% if topic.notes %}
+            <div class="talk-later-detail__notes">
+                <h2>Notes</h2>
+                <p>{{ topic.notes|linebreaksbr }}</p>
+            </div>
+        {% endif %}
+    </section>
+
+    <section class="list-actions" aria-labelledby="topic-actions-title">
+        <div>
+            <h2 id="topic-actions-title">{% if topic.is_done %}Discuss this again?{% else %}Finished discussing it?{% endif %}</h2>
+            <p>{% if topic.is_done %}Mark it not done to return it to your shared topics.{% else %}Mark it done to keep the list focused.{% endif %}</p>
+        </div>
+        <form method="post" action="{% url 'talk_later:topic_toggle' topic_id=topic.pk %}">
+            {% csrf_token %}
+            <button class="button button--primary" type="submit">{% if topic.is_done %}Mark Not Done{% else %}Mark Done{% endif %}</button>
+        </form>
+    </section>
+    <div class="danger-zone">
+        <a class="danger-link" href="{% url 'talk_later:topic_delete' topic_id=topic.pk %}">Delete this topic</a>
+    </div>
+</div>
+{% endblock %}

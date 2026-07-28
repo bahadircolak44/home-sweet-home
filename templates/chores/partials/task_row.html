@@ -14,10 +14,31 @@
         </button>
     </form>
     <div class="chore-task-row__content">
-        <span class="chore-task-row__title">{{ task.title }}</span>
+        <div class="chore-task-row__title-line">
+            {% if task.is_done %}
+                <span class="quantity-badge">{{ task.quantity }}×</span>
+            {% else %}
+                <form
+                    method="post"
+                    action="{% url 'chores:task_quantity_adjust' task_id=task.pk %}"
+                    class="quantity-stepper"
+                    hx-post="{% url 'chores:task_quantity_adjust' task_id=task.pk %}"
+                    hx-target="#session-live-region"
+                    hx-swap="outerHTML"
+                    hx-disabled-elt="button"
+                    aria-label="Change quantity for {{ task.title }}"
+                >
+                    {% csrf_token %}
+                    <button class="quantity-stepper__button" type="submit" name="delta" value="-1" aria-label="Decrease {{ task.title }} quantity"{% if task.quantity == 1 %} disabled{% endif %}>−</button>
+                    <span class="quantity-badge quantity-stepper__value" aria-label="Quantity {{ task.quantity }}">{{ task.quantity }}×</span>
+                    <button class="quantity-stepper__button" type="submit" name="delta" value="1" aria-label="Increase {{ task.title }} quantity">+</button>
+                </form>
+            {% endif %}
+            <span class="chore-task-row__title">{{ task.title }}</span>
+        </div>
         <span class="item-row__meta">
             {% if task.is_done %}
-                Completed by {{ task.completed_by.get_full_name|default:task.completed_by.get_username }}
+                {% if show_assignee %}Assigned to {% if task.assignee %}{{ task.assignee.get_full_name|default:task.assignee.get_username }}{% else %}Unassigned{% endif %} · {% endif %}Completed by {{ task.completed_by.get_full_name|default:task.completed_by.get_username }}
             {% else %}
                 Added by {{ task.created_by.get_full_name|default:task.created_by.get_username }}
             {% endif %}

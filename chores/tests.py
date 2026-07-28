@@ -80,7 +80,11 @@ class ChoreFlowTests(TestCase):
 
         response = self.client.post(
             reverse("chores:task_add", args=[self.session.pk]),
-            {"title": "Clean the kitchen", "assignee": self.outsider.pk},
+            {
+                "title": "Clean the kitchen",
+                "quantity": 1,
+                "assignee": self.outsider.pk,
+            },
         )
 
         self.assertEqual(response.status_code, 422)
@@ -91,7 +95,7 @@ class ChoreFlowTests(TestCase):
 
         response = self.client.post(
             reverse("chores:task_add", args=[self.session.pk]),
-            {"title": "Clean the kitchen", "assignee": self.sam.pk},
+            {"title": "Clean the kitchen", "quantity": 3, "assignee": self.sam.pk},
         )
 
         self.assertRedirects(
@@ -99,6 +103,7 @@ class ChoreFlowTests(TestCase):
         )
         task = ChoreTask.objects.get(title="Clean the kitchen")
         self.assertEqual(task.assignee, self.sam)
+        self.assertEqual(task.quantity, 3)
         detail = self.client.get(reverse("chores:session_detail", args=[self.session.pk]))
         self.assertContains(detail, "Sam")
         self.assertContains(detail, "Clean the kitchen")
@@ -155,7 +160,7 @@ class ChoreFlowTests(TestCase):
 
         self.client.post(
             reverse("chores:task_add", args=[self.session.pk]),
-            {"title": "Vacuum the living room", "assignee": ""},
+            {"title": "Vacuum the living room", "quantity": 1, "assignee": ""},
         )
 
         self.session.refresh_from_db()
@@ -173,7 +178,7 @@ class ChoreFlowTests(TestCase):
         self.assertEqual(
             self.client.post(
                 reverse("chores:task_add", args=[self.session.pk]),
-                {"title": "Crafted task", "assignee": ""},
+                {"title": "Crafted task", "quantity": 1, "assignee": ""},
             ).status_code,
             404,
         )
@@ -219,6 +224,88 @@ class ChoreFlowTests(TestCase):
 
         self.assertContains(dashboard, "1</strong> active session")
         self.assertContains(dashboard, "1</strong> task remaining")
+
+    def test_task_quantity_can_be_adjusted_from_an_active_session(self):
+        task = ChoreTask.objects.create(
+            session=self.session,
+            title="Clean the kitchen",
+            quantity=2,
+            assignee=self.sam,
+            created_by=self.alex,
+        )
+        self.client.force_login(self.alex)
+        quantity_url = reverse("chores:task_quantity_adjust", args=[task.pk])
+
+        response = self.client.post(
+            quantity_url, {"delta": 1}, HTTP_HX_REQUEST="true"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "3×")
+        task.refresh_from_db()
+        self.assertEqual(task.quantity, 3)
+
+        self.client.post(quantity_url, {"delta": -1})
+        task.refresh_from_db()
+        self.assertEqual(task.quantity, 2)
+
+    def test_completed_tasks_are_grouped_at_the_bottom_with_assignee_names(self):
+        ChoreTask.objects.create(
+            session=self.session,
+            title="Still needed task",
+            assignee=self.alex,
+            created_by=self.alex,
+        )
+        alex_done = ChoreTask.objects.create(
+            session=self.session,
+            title="Alex completed task",
+            quantity=2,
+            assignee=self.alex,
+            is_done=True,
+            completed_by=self.alex,
+            completed_at=timezone.now(),
+            created_by=self.alex,
+        )
+        sam_done = ChoreTask.objects.create(
+            session=self.session,
+            title="Sam completed task",
+            assignee=self.sam,
+            is_done=True,
+            completed_by=self.sam,
+            completed_at=timezone.now(),
+            created_by=self.alex,
+        )
+        del alex_done, sam_done
+        self.client.force_login(self.alex)
+
+        response = self.client.get(
+            reverse("chores:session_detail", args=[self.session.pk])
+        )
+
+        self.assertContains(response, "Still needed")
+        self.assertContains(response, "Completed")
+        self.assertContains(response, "Assigned to Alex")
+        self.assertContains(response, "Assigned to Sam")
+        self.assertLess(
+            response.content.index(b'id="tasks-title"'),
+            response.content.index(b'id="completed-tasks-title"'),
+        )
+
+    def test_quick_add_collapses_templates_after_the_first_three(self):
+        for number in range(4):
+            ChoreTemplate.objects.create(
+                household=self.home,
+                title=f"Reusable chore {number}",
+                created_by=self.alex,
+            )
+        self.client.force_login(self.alex)
+
+        response = self.client.get(
+            reverse("chores:session_detail", args=[self.session.pk])
+        )
+
+        self.assertContains(response, "Show more chores")
+        self.assertContains(response, 'class="chore-quick-add__more"')
 
     @override_settings(
         PUSH_NOTIFICATIONS_ENABLED=True,

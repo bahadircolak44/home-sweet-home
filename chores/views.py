@@ -2,6 +2,7 @@ from datetime import date
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.http import HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
@@ -13,6 +14,7 @@ from .models import ChoreSession, ChoreTemplate
 from .services import (
     InvalidChoreOperation,
     active_sessions_for_user,
+    adjust_task_quantity,
     completed_sessions_for_user,
     complete_session,
     create_session,
@@ -48,12 +50,13 @@ def _require_household(request):
     return household
 
 
-def _task_groups(session):
-    tasks = list(
-        session.tasks.select_related("assignee", "created_by", "completed_by").order_by(
-            "created_at"
-        )
+def _task_groups(session, done=None):
+    tasks_queryset = session.tasks.select_related(
+        "assignee", "created_by", "completed_by"
     )
+    if done is not None:
+        tasks_queryset = tasks_queryset.filter(is_done=done)
+    tasks = list(tasks_queryset.order_by("created_at"))
     tasks_by_assignee = {}
     unassigned_tasks = []
     for task in tasks:
@@ -72,25 +75,27 @@ def _task_groups(session):
         member_tasks = tasks_by_assignee.get(membership.user_id, [])
         if not member_tasks:
             continue
-        done_count = sum(task.is_done for task in member_tasks)
+        done_count = sum(task.quantity for task in member_tasks if task.is_done)
+        total_count = sum(task.quantity for task in member_tasks)
         groups.append(
             {
                 "title": member_name(membership.user),
                 "tasks": member_tasks,
                 "done_count": done_count,
-                "total_count": len(member_tasks),
-                "percentage": round(done_count / len(member_tasks) * 100),
+                "total_count": total_count,
+                "percentage": round(done_count / total_count * 100),
             }
         )
     if unassigned_tasks:
-        done_count = sum(task.is_done for task in unassigned_tasks)
+        done_count = sum(task.quantity for task in unassigned_tasks if task.is_done)
+        total_count = sum(task.quantity for task in unassigned_tasks)
         groups.append(
             {
                 "title": "Unassigned",
                 "tasks": unassigned_tasks,
                 "done_count": done_count,
-                "total_count": len(unassigned_tasks),
-                "percentage": round(done_count / len(unassigned_tasks) * 100),
+                "total_count": total_count,
+                "percentage": round(done_count / total_count * 100),
             }
         )
     return groups
@@ -118,7 +123,12 @@ def _session_context(session, task_form=None, quick_add_error=None):
         "session": refreshed_session,
         "task_form": task_form
         or ChoreTaskForm(household=refreshed_session.household),
-        "task_groups": _task_groups(refreshed_session),
+        "task_groups": _task_groups(refreshed_session, done=False),
+        "completed_tasks": list(
+            refreshed_session.tasks.filter(is_done=True)
+            .select_related("assignee", "created_by", "completed_by")
+            .order_by("-completed_at")
+        ),
         "quick_templates": quick_templates,
         "added_template_ids": added_template_ids,
         "quick_add_error": quick_add_error,
@@ -252,6 +262,7 @@ def task_add(request, session_id):
             create_task(
                 session=session,
                 title=form.cleaned_data["title"],
+                quantity=form.cleaned_data["quantity"],
                 assignee=form.cleaned_data["assignee"],
                 user=request.user,
             )
@@ -332,6 +343,37 @@ def task_toggle(request, task_id):
 
 
 @login_required
+@require_POST
+def task_quantity_adjust(request, task_id):
+    try:
+        delta = int(request.POST.get("delta", ""))
+    except (TypeError, ValueError):
+        return HttpResponseBadRequest("Quantity adjustment must be a whole number.")
+    if delta not in (-1, 1):
+        return HttpResponseBadRequest("Quantity adjustment must be one step at a time.")
+
+    task = get_object_or_404(tasks_for_user(request.user), pk=task_id)
+    session = task.session
+    try:
+        adjust_task_quantity(task=task, delta=delta, user=request.user)
+    except InvalidChoreOperation as error:
+        messages.error(request, str(error))
+        destination = (
+            "chores:history_detail"
+            if session.status == ChoreSession.Status.COMPLETED
+            else "chores:session_detail"
+        )
+        return redirect(destination, session_id=session.pk)
+    if _is_htmx(request):
+        return render(
+            request,
+            "chores/partials/session_interactions.html",
+            _session_context(session),
+        )
+    return redirect("chores:session_detail", session_id=session.pk)
+
+
+@login_required
 def task_edit(request, task_id):
     task = get_object_or_404(
         tasks_for_user(request.user).filter(
@@ -345,6 +387,7 @@ def task_edit(request, task_id):
             task = update_task(
                 task=task,
                 title=form.cleaned_data["title"],
+                quantity=form.cleaned_data["quantity"],
                 assignee=form.cleaned_data["assignee"],
                 user=request.user,
             )

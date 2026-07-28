@@ -23,6 +23,7 @@ class ChoreSessionAdmin(admin.ModelAdmin):
 class ChoreTaskAdmin(admin.ModelAdmin):
     list_display = (
         "title",
+        "quantity",
         "session",
         "assignee",
         "is_done",

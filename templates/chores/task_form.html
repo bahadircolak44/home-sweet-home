@@ -20,6 +20,11 @@
             {{ form.title }}
             {% for error in form.title.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
         </div>
+        <div class="form-field form-field--quantity">
+            <label for="{{ form.quantity.id_for_label }}">Quantity</label>
+            {{ form.quantity }}
+            {% for error in form.quantity.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+        </div>
         <div class="form-field">
             <label for="{{ form.assignee.id_for_label }}">Assignee</label>
             {{ form.assignee }}

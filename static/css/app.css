@@ -1018,14 +1018,20 @@ h2 {
 
 .chore-task-form__fields {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(150px, 0.5fr) auto;
+    grid-template-columns: minmax(0, 1fr) 72px minmax(150px, 0.5fr) auto;
     align-items: start;
     gap: 0.65rem;
 }
 
 .chore-task-form__title,
+.chore-task-form__quantity,
 .chore-task-form__assignee {
     min-width: 0;
+}
+
+.chore-task-form__quantity input {
+    padding-inline: 0.45rem;
+    text-align: center;
 }
 
 .chore-task-form__button {
@@ -1121,6 +1127,24 @@ h2 {
     font-size: 0.88rem;
 }
 
+.chore-quick-add__more {
+    margin-top: 0.55rem;
+    padding-top: 0.55rem;
+    border-top: 1px solid var(--line);
+}
+
+.chore-quick-add__more summary {
+    min-height: 38px;
+    color: var(--green-dark);
+    cursor: pointer;
+    font-size: 0.84rem;
+    font-weight: 750;
+}
+
+.chore-quick-add__more[open] summary {
+    margin-bottom: 0.55rem;
+}
+
 .chore-task-groups {
     display: grid;
     padding-top: 0.5rem;
@@ -1129,6 +1153,10 @@ h2 {
 
 .chore-task-groups > .section-heading {
     margin-bottom: 0;
+}
+
+.chore-task-groups--completed {
+    padding-top: 0.75rem;
 }
 
 .chore-task-group {
@@ -1201,6 +1229,13 @@ h2 {
 .chore-task-row__title {
     overflow-wrap: anywhere;
     font-weight: 700;
+}
+
+.chore-task-row__title-line {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    gap: 0.45rem;
 }
 
 .chore-task-row__actions {
@@ -2123,6 +2158,7 @@ h2 {
     }
 
     .chore-task-form__button {
+        grid-column: 1 / -1;
         padding-inline: 0.75rem;
     }
 
@@ -2225,6 +2261,7 @@ h2 {
     }
 
     .chore-task-form__title,
+    .chore-task-form__quantity,
     .chore-task-form__assignee,
     .chore-task-form__button {
         grid-column: auto;

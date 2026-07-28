@@ -28,6 +28,11 @@
                     {{ task_form.title }}
                     {% for error in task_form.title.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
                 </div>
+                <div class="chore-task-form__quantity">
+                    <label class="sr-only" for="{{ task_form.quantity.id_for_label }}">Quantity</label>
+                    {{ task_form.quantity }}
+                    {% for error in task_form.quantity.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+                </div>
                 <div class="chore-task-form__assignee">
                     <label class="sr-only" for="{{ task_form.assignee.id_for_label }}">Assignee</label>
                     {{ task_form.assignee }}
@@ -49,30 +54,20 @@
         {% if quick_add_error %}<div class="form-alert" role="alert">{{ quick_add_error }}</div>{% endif %}
         {% if quick_templates %}
             <div class="quick-template-list">
-                {% for template in quick_templates %}
-                    <div class="quick-template-row">
-                        <div>
-                            <strong>{{ template.title }}</strong>
-                            <span>{% if template.default_assignee %}{{ template.default_assignee.get_full_name|default:template.default_assignee.get_username }}{% else %}Unassigned{% endif %}</span>
-                        </div>
-                        {% if template.pk in added_template_ids %}
-                            <span class="quick-template-row__added">Added</span>
-                        {% else %}
-                            <form
-                                method="post"
-                                action="{% url 'chores:task_quick_add' session_id=session.pk template_id=template.pk %}"
-                                hx-post="{% url 'chores:task_quick_add' session_id=session.pk template_id=template.pk %}"
-                                hx-target="#session-live-region"
-                                hx-swap="outerHTML"
-                                hx-disabled-elt="button"
-                            >
-                                {% csrf_token %}
-                                <button class="button button--secondary button--small" type="submit">Add</button>
-                            </form>
-                        {% endif %}
-                    </div>
+                {% for template in quick_templates|slice:":3" %}
+                    {% include "chores/partials/quick_template_row.html" %}
                 {% endfor %}
             </div>
+            {% if quick_templates|length > 3 %}
+                <details class="chore-quick-add__more">
+                    <summary>Show more chores</summary>
+                    <div class="quick-template-list">
+                        {% for template in quick_templates|slice:"3:" %}
+                            {% include "chores/partials/quick_template_row.html" %}
+                        {% endfor %}
+                    </div>
+                </details>
+            {% endif %}
         {% else %}
             <p class="chore-quick-add__empty">Create reusable chores to add common tasks with one tap.</p>
         {% endif %}
@@ -80,8 +75,8 @@
 
     <section class="chore-task-groups" aria-labelledby="tasks-title">
         <div class="section-heading">
-            <h2 id="tasks-title">Tasks</h2>
-            <span class="count-badge">{{ session.total_task_count }}</span>
+            <h2 id="tasks-title">Still needed</h2>
+            <span class="count-badge">{{ session.remaining_task_count }}</span>
         </div>
         {% if task_groups %}
             {% for group in task_groups %}
@@ -89,12 +84,8 @@
                     <div class="chore-task-group__heading">
                         <div>
                             <h3 id="task-group-{{ forloop.counter }}">{{ group.title }}</h3>
-                            <p>{{ group.done_count }} of {{ group.total_count }} done</p>
+                            <p>{{ group.total_count }} task{{ group.total_count|pluralize }} remaining</p>
                         </div>
-                        <span>{{ group.percentage }}%</span>
-                    </div>
-                    <div class="progress-track">
-                        <span class="progress-track__bar" style="width: {{ group.percentage }}%"></span>
                     </div>
                     <div class="chore-task-list">
                         {% for task in group.tasks %}
@@ -104,7 +95,21 @@
                 </section>
             {% endfor %}
         {% else %}
-            <div class="inline-empty"><span aria-hidden="true">✨</span><p>Add a custom task or choose a Quick Add chore above.</p></div>
+            <div class="inline-empty"><span aria-hidden="true">✨</span><p>{% if session.total_task_count %}All tasks are complete.{% else %}Add a custom task or choose a Quick Add chore above.{% endif %}</p></div>
         {% endif %}
     </section>
+
+    {% if completed_tasks %}
+        <section class="chore-task-groups chore-task-groups--completed" aria-labelledby="completed-tasks-title">
+            <div class="section-heading">
+                <h2 id="completed-tasks-title">Completed</h2>
+                <span class="count-badge count-badge--muted">{{ session.done_task_count }}</span>
+            </div>
+            <div class="chore-task-list">
+                {% for task in completed_tasks %}
+                    {% include "chores/partials/task_row.html" with show_assignee=True %}
+                {% endfor %}
+            </div>
+        </section>
+    {% endif %}
 </div>

@@ -51,13 +51,20 @@ class ChoreSessionForm(forms.ModelForm):
 
 
 class ChoreTaskForm(forms.ModelForm):
+    quantity = forms.IntegerField(
+        min_value=1,
+        initial=1,
+        widget=forms.NumberInput(
+            attrs={"min": 1, "inputmode": "numeric", "aria-label": "Quantity"}
+        ),
+    )
     assignee = HouseholdMemberChoiceField(
         queryset=None, required=False, empty_label="Unassigned"
     )
 
     class Meta:
         model = ChoreTask
-        fields = ("title", "assignee")
+        fields = ("title", "quantity", "assignee")
         widgets = {
             "title": forms.TextInput(
                 attrs={
@@ -65,6 +72,9 @@ class ChoreTaskForm(forms.ModelForm):
                     "autocomplete": "off",
                     "data-add-chore-task-input": "",
                 }
+            ),
+            "quantity": forms.NumberInput(
+                attrs={"min": 1, "inputmode": "numeric", "aria-label": "Quantity"}
             ),
             "assignee": forms.Select(),
         }

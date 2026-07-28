@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block title %}Chore History · Home Sweet Home{% endblock %}
+
+{% block content %}
+<div class="page-heading">
+    <div>
+        <p class="eyebrow">Household archive</p>
+        <h1>Chore History</h1>
+        <p>A read-only record of completed household plans.</p>
+    </div>
+</div>
+{% include "chores/partials/module_nav.html" %}
+
+{% if not household %}
+    <section class="empty-state">
+        <span class="empty-state__icon" aria-hidden="true">🔑</span>
+        <h2>No household connected</h2>
+        <p>An administrator needs to add your account to a household before history is available.</p>
+    </section>
+{% elif sessions %}
+    <div class="card-grid">
+        {% for session in sessions %}
+            {% include "chores/partials/session_card.html" with history_card=True %}
+        {% endfor %}
+    </div>
+{% else %}
+    <section class="empty-state">
+        <span class="empty-state__icon" aria-hidden="true">🕘</span>
+        <h2>No completed sessions yet</h2>
+        <p>Sessions will appear here after someone completes them.</p>
+        <a class="button button--secondary" href="{% url 'chores:session_index' %}">View Active Sessions</a>
+    </section>
+{% endif %}
+{% endblock %}

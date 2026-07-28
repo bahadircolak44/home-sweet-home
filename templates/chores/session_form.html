@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }} · Home Sweet Home{% endblock %}
+
+{% block content %}
+<div class="narrow-page">
+    {% include "chores/partials/module_nav.html" %}
+    <a class="back-link" href="{% if session %}{% url 'chores:session_detail' session_id=session.pk %}{% else %}{% url 'chores:session_index' %}{% endif %}">← Back</a>
+    <div class="page-heading page-heading--compact">
+        <div>
+            <p class="eyebrow">Shared household tasks</p>
+            <h1>{{ page_title }}</h1>
+        </div>
+    </div>
+    <form method="post" class="panel stack-form" novalidate>
+        {% csrf_token %}
+        {% if form.non_field_errors %}<div class="form-alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+        <div class="form-field">
+            <label for="{{ form.name.id_for_label }}">Session name</label>
+            {{ form.name }}
+            {% for error in form.name.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+        </div>
+        <div class="form-field">
+            <label for="{{ form.notes.id_for_label }}">Notes <span class="optional-label">Optional</span></label>
+            {{ form.notes }}
+            {% for error in form.notes.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+        </div>
+        <div class="form-actions">
+            <button class="button button--primary" type="submit">{{ submit_label }}</button>
+            <a class="button button--secondary" href="{% if session %}{% url 'chores:session_detail' session_id=session.pk %}{% else %}{% url 'chores:session_index' %}{% endif %}">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

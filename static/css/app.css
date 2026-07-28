@@ -669,9 +669,12 @@ h2 {
 }
 
 .form-field input:not([type="radio"]),
+.form-field select,
 .form-field textarea,
 .add-item-form input,
-.add-item-form textarea {
+.add-item-form textarea,
+.chore-task-form input,
+.chore-task-form select {
     width: 100%;
     min-height: 50px;
     padding: 0.75rem 0.9rem;
@@ -682,9 +685,12 @@ h2 {
 }
 
 .form-field input:not([type="radio"]):focus,
+.form-field select:focus,
 .form-field textarea:focus,
 .add-item-form input:focus,
-.add-item-form textarea:focus {
+.add-item-form textarea:focus,
+.chore-task-form input:focus,
+.chore-task-form select:focus {
     border-color: var(--green);
     box-shadow: 0 0 0 4px rgba(79, 123, 98, 0.12);
     outline: 0;
@@ -986,6 +992,303 @@ h2 {
     background: var(--green);
     font-size: 1.15rem;
     line-height: 1;
+}
+
+.chores-index-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 1.25rem;
+    gap: 0.65rem;
+}
+
+.chore-session-card__notes {
+    display: -webkit-box;
+    margin: -0.3rem 0 0.75rem;
+    overflow: hidden;
+    color: var(--muted);
+    font-size: 0.84rem;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+}
+
+.chore-task-add-panel {
+    padding: 0.75rem;
+}
+
+.chore-task-form__fields {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(150px, 0.5fr) auto;
+    align-items: start;
+    gap: 0.65rem;
+}
+
+.chore-task-form__title,
+.chore-task-form__assignee {
+    min-width: 0;
+}
+
+.chore-task-form__button {
+    min-height: 52px;
+    border-radius: var(--radius-small);
+}
+
+.chore-quick-add {
+    padding: 1rem;
+    border: 1px solid #cfdbd2;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.8);
+}
+
+.chore-quick-add__heading {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    margin-bottom: 0.7rem;
+    gap: 1rem;
+}
+
+.chore-quick-add__heading .eyebrow {
+    margin-bottom: 0.15rem;
+}
+
+.chore-quick-add__heading h2 {
+    margin: 0;
+    font-size: 1.05rem;
+}
+
+.chore-quick-add__heading a {
+    min-height: 36px;
+    color: var(--green-dark);
+    font-size: 0.8rem;
+    font-weight: 750;
+}
+
+.chore-quick-add .form-alert {
+    margin-bottom: 0.7rem;
+}
+
+.quick-template-list {
+    display: grid;
+    gap: 0.5rem;
+}
+
+.quick-template-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-width: 0;
+    padding: 0.65rem 0 0.65rem 0.7rem;
+    border: 1px solid var(--line);
+    border-radius: 13px;
+    background: var(--paper);
+    gap: 0.75rem;
+}
+
+.quick-template-row > div {
+    display: grid;
+    min-width: 0;
+    gap: 0.05rem;
+}
+
+.quick-template-row strong {
+    overflow-wrap: anywhere;
+    font-size: 0.9rem;
+}
+
+.quick-template-row span:not(.quick-template-row__added) {
+    color: var(--muted);
+    font-size: 0.76rem;
+}
+
+.quick-template-row__added,
+.template-status {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 34px;
+    padding: 0.3rem 0.6rem;
+    border-radius: 999px;
+    color: var(--green-dark);
+    background: var(--green-soft);
+    font-size: 0.75rem;
+    font-weight: 800;
+}
+
+.chore-quick-add__empty {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.88rem;
+}
+
+.chore-task-groups {
+    display: grid;
+    padding-top: 0.5rem;
+    gap: 0.8rem;
+}
+
+.chore-task-groups > .section-heading {
+    margin-bottom: 0;
+}
+
+.chore-task-group {
+    padding: 0.85rem;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.72);
+}
+
+.chore-task-group__heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.6rem;
+    gap: 1rem;
+}
+
+.chore-task-group__heading h3 {
+    margin: 0;
+    font-size: 1rem;
+}
+
+.chore-task-group__heading p {
+    margin: 0.1rem 0 0;
+    color: var(--muted);
+    font-size: 0.78rem;
+}
+
+.chore-task-group__heading > span {
+    color: var(--green-dark);
+    font-size: 0.8rem;
+    font-weight: 800;
+}
+
+.chore-task-list,
+.history-chore-task-list {
+    margin-top: 0.75rem;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: var(--paper);
+    overflow: hidden;
+}
+
+.chore-task-row {
+    display: flex;
+    align-items: stretch;
+    min-width: 0;
+    border-bottom: 1px solid var(--line);
+}
+
+.chore-task-row:last-child {
+    border-bottom: 0;
+}
+
+.chore-task-row__check-form {
+    display: flex;
+    flex: 0 0 54px;
+    align-items: stretch;
+}
+
+.chore-task-row__content {
+    display: grid;
+    flex: 1;
+    align-content: center;
+    min-width: 0;
+    padding: 0.75rem 0.35rem;
+    gap: 0.15rem;
+}
+
+.chore-task-row__title {
+    overflow-wrap: anywhere;
+    font-weight: 700;
+}
+
+.chore-task-row__actions {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    padding-right: 0.25rem;
+    gap: 0.15rem;
+}
+
+.chore-task-row__actions .icon-button {
+    width: 40px;
+    min-height: 44px;
+    margin: 8px 0;
+}
+
+.chore-task-row--done .check-control {
+    border-color: var(--green);
+    background: var(--green);
+}
+
+.chore-task-row--done .chore-task-row__title {
+    color: var(--muted);
+    text-decoration: line-through;
+}
+
+.quick-list-management {
+    display: grid;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    background: var(--paper);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+}
+
+.quick-list-management__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-width: 0;
+    padding: 1rem;
+    border-bottom: 1px solid var(--line);
+    gap: 1rem;
+}
+
+.quick-list-management__row:last-child {
+    border-bottom: 0;
+}
+
+.quick-list-management__row h2 {
+    margin: 0 0 0.2rem;
+    font-size: 1rem;
+    overflow-wrap: anywhere;
+}
+
+.quick-list-management__row p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.82rem;
+}
+
+.quick-list-management__row--inactive {
+    background: #f7f8f5;
+}
+
+.quick-list-management__row--inactive h2,
+.quick-list-management__row--inactive p {
+    color: var(--muted);
+}
+
+.quick-list-management__actions {
+    display: flex;
+    flex: 0 0 auto;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: end;
+    gap: 0.45rem;
+}
+
+.quick-list-management__actions .danger-link {
+    min-height: 36px;
+    padding: 0.45rem;
+}
+
+.session-notes {
+    margin: -0.5rem 0 1rem;
+    color: var(--muted);
+    overflow-wrap: anywhere;
 }
 
 .progress-panel {
@@ -1562,6 +1865,51 @@ h2 {
         height: 26px;
         margin-left: 0.3rem;
     }
+
+    .module-nav {
+        display: flex;
+        max-width: 100%;
+        overflow-x: auto;
+    }
+
+    .module-nav__link {
+        flex: 0 0 auto;
+        padding-inline: 0.7rem;
+        white-space: nowrap;
+    }
+
+    .mobile-nav {
+        justify-content: stretch;
+    }
+
+    .mobile-nav__link {
+        flex: 1 1 0;
+        width: auto;
+        min-width: 0;
+        padding-inline: 0.2rem;
+        font-size: 0.68rem;
+    }
+
+    .chore-task-form__fields {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
+
+    .chore-task-form__title {
+        grid-column: 1 / -1;
+    }
+
+    .chore-task-form__button {
+        padding-inline: 0.75rem;
+    }
+
+    .quick-list-management__row {
+        align-items: start;
+        flex-direction: column;
+    }
+
+    .quick-list-management__actions {
+        justify-content: start;
+    }
 }
 
 @media (min-width: 480px) and (max-width: 660px) {
@@ -1638,6 +1986,42 @@ h2 {
 
     .quick-add-panel__heading > p {
         display: none;
+    }
+
+    .chore-task-form__fields {
+        grid-template-columns: 1fr;
+    }
+
+    .chore-task-form__title,
+    .chore-task-form__assignee,
+    .chore-task-form__button {
+        grid-column: auto;
+        width: 100%;
+    }
+
+    .chore-quick-add__heading {
+        align-items: start;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .quick-template-row {
+        align-items: start;
+        flex-direction: column;
+    }
+
+    .quick-template-row form,
+    .quick-template-row form .button {
+        width: 100%;
+    }
+
+    .chore-task-row__actions .item-edit-link {
+        font-size: 0;
+    }
+
+    .chore-task-row__actions .item-edit-link::after {
+        content: "Edit";
+        font-size: 0.75rem;
     }
 
     .form-actions .button,

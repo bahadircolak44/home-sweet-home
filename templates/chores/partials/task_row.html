@@ -1,0 +1,41 @@
+<article class="chore-task-row{% if task.is_done %} chore-task-row--done{% endif %}">
+    <form
+        method="post"
+        action="{% url 'chores:task_toggle' task_id=task.pk %}"
+        class="chore-task-row__check-form"
+        hx-post="{% url 'chores:task_toggle' task_id=task.pk %}"
+        hx-target="#session-live-region"
+        hx-swap="outerHTML"
+        hx-disabled-elt="button"
+    >
+        {% csrf_token %}
+        <button class="item-row__check-button" type="submit" aria-label="{% if task.is_done %}Mark {{ task.title }} as not done{% else %}Mark {{ task.title }} as done{% endif %}">
+            <span class="check-control" aria-hidden="true">{% if task.is_done %}✓{% endif %}</span>
+        </button>
+    </form>
+    <div class="chore-task-row__content">
+        <span class="chore-task-row__title">{{ task.title }}</span>
+        <span class="item-row__meta">
+            {% if task.is_done %}
+                Completed by {{ task.completed_by.get_full_name|default:task.completed_by.get_username }}
+            {% else %}
+                Added by {{ task.created_by.get_full_name|default:task.created_by.get_username }}
+            {% endif %}
+        </span>
+    </div>
+    <div class="chore-task-row__actions">
+        <a class="item-edit-link" href="{% url 'chores:task_edit' task_id=task.pk %}">Edit</a>
+        <form
+            method="post"
+            action="{% url 'chores:task_delete' task_id=task.pk %}"
+            hx-post="{% url 'chores:task_delete' task_id=task.pk %}"
+            hx-target="#session-live-region"
+            hx-swap="outerHTML"
+            hx-confirm="Delete {{ task.title }}?"
+            hx-disabled-elt="button"
+        >
+            {% csrf_token %}
+            <button class="icon-button icon-button--danger" type="submit" aria-label="Delete {{ task.title }}">×</button>
+        </form>
+    </div>
+</article>

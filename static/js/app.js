@@ -322,10 +322,16 @@
 
     document.body.addEventListener("htmx:afterSwap", (event) => {
         const trigger = event.detail.requestConfig?.elt;
-        if (!trigger?.closest?.("[data-add-item-form]")) return;
-        document
-            .querySelector("#list-live-region [data-add-item-input]")
-            ?.focus({ preventScroll: true });
+        if (trigger?.closest?.("[data-add-item-form]")) {
+            document
+                .querySelector("#list-live-region [data-add-item-input]")
+                ?.focus({ preventScroll: true });
+        }
+        if (trigger?.closest?.("[data-add-chore-task-form]")) {
+            document
+                .querySelector("#session-live-region [data-add-chore-task-input]")
+                ?.focus({ preventScroll: true });
+        }
     });
 
     if ("serviceWorker" in navigator) {

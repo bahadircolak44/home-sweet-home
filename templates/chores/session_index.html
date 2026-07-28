@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}Household Chores · Home Sweet Home{% endblock %}
+
+{% block content %}
+<div class="page-heading">
+    <div>
+        <p class="eyebrow">{% if household %}{{ household.name }}{% else %}Shared household{% endif %}</p>
+        <h1>Household Chores</h1>
+        <p>Assign and complete household tasks together.</p>
+    </div>
+    {% if household %}<a class="button button--primary" href="{% url 'chores:session_create' %}">New Chore Session</a>{% endif %}
+</div>
+{% include "chores/partials/module_nav.html" %}
+
+{% if not household %}
+    <section class="empty-state">
+        <span class="empty-state__icon" aria-hidden="true">🔑</span>
+        <h2>No household connected</h2>
+        <p>Your account is ready, but an administrator needs to add it to a household before you can share chores.</p>
+    </section>
+{% elif sessions %}
+    <div class="card-grid">
+        {% for session in sessions %}
+            {% include "chores/partials/session_card.html" with history_card=False %}
+        {% endfor %}
+    </div>
+{% else %}
+    <section class="empty-state">
+        <span class="empty-state__icon" aria-hidden="true">🧹</span>
+        <h2>No active chore sessions yet.</h2>
+        <p>Create a session for this week, a cleaning day, or any shared household plan.</p>
+        <a class="button button--primary" href="{% url 'chores:session_create' %}">Create a Chore Session</a>
+    </section>
+{% endif %}
+
+{% if household %}
+    <div class="chores-index-actions">
+        <a class="button button--secondary" href="{% url 'chores:history' %}">Chore History</a>
+        <a class="button button--secondary" href="{% url 'chores:quick_list' %}">Manage Quick List</a>
+    </div>
+{% endif %}
+{% endblock %}

@@ -19,6 +19,7 @@ urlpatterns = [
     path("accounts/logout/", auth_views.LogoutView.as_view(), name="logout"),
     path("service-worker.js", shopping_views.service_worker, name="service_worker"),
     path("groceries/", include("shopping.urls")),
+    path("chores/", include("chores.urls")),
     path("notifications/", include("push_notifications.urls")),
 ]
 

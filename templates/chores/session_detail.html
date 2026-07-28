@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block title %}{{ session.name }} · Home Sweet Home{% endblock %}
+
+{% block content %}
+<div class="detail-page">
+    {% include "chores/partials/module_nav.html" %}
+    <a class="back-link" href="{% url 'chores:session_index' %}">← All Sessions</a>
+    <header class="detail-heading">
+        <div class="detail-heading__identity">
+            <span class="detail-heading__icon" aria-hidden="true">🧹</span>
+            <div>
+                <p class="eyebrow">Chore session</p>
+                <h1>{{ session.name }}</h1>
+                {% if session.notes %}<p>{{ session.notes }}</p>{% else %}<p>Updated {{ session.updated_at|timesince }} ago</p>{% endif %}
+            </div>
+        </div>
+        <a class="button button--secondary button--small" href="{% url 'chores:session_edit' session_id=session.pk %}">Edit Session</a>
+    </header>
+
+    {% include "chores/partials/session_interactions.html" %}
+
+    <section class="list-actions" aria-labelledby="session-actions-title">
+        <div>
+            <h2 id="session-actions-title">Finish this session?</h2>
+            <p>Move it to household history when this plan is done.</p>
+        </div>
+        <a class="button button--primary" href="{% url 'chores:session_complete' session_id=session.pk %}">Complete Session</a>
+    </section>
+    <div class="danger-zone">
+        <a class="danger-link" href="{% url 'chores:session_delete' session_id=session.pk %}">Delete this session</a>
+    </div>
+</div>
+{% endblock %}

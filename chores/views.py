@@ -13,8 +13,8 @@ from .forms import ChoreSessionForm, ChoreTaskForm, ChoreTemplateForm, member_na
 from .models import ChoreSession, ChoreTemplate
 from .services import (
     InvalidChoreOperation,
+    add_completed_task,
     active_sessions_for_user,
-    adjust_task_quantity,
     completed_sessions_for_user,
     complete_session,
     create_session,
@@ -27,6 +27,7 @@ from .services import (
     delete_template,
     sessions_for_user,
     set_template_active,
+    remove_completed_task,
     tasks_for_user,
     templates_for_user,
     toggle_task,
@@ -101,6 +102,30 @@ def _task_groups(session, done=None):
     return groups
 
 
+def _completed_task_summaries(session):
+    tasks = (
+        session.tasks.filter(is_done=True)
+        .select_related("completed_by")
+        .order_by("-completed_at", "-pk")
+    )
+    summaries = {}
+    for task in tasks:
+        key = task.title.casefold()
+        summary = summaries.setdefault(
+            key,
+            {
+                "title": task.title,
+                "quantity": 0,
+                "completed_by_names": [],
+            },
+        )
+        summary["quantity"] += task.quantity
+        completer_name = member_name(task.completed_by)
+        if completer_name not in summary["completed_by_names"]:
+            summary["completed_by_names"].append(completer_name)
+    return list(summaries.values())
+
+
 def _session_context(session, task_form=None, quick_add_error=None):
     refreshed_session = (
         ChoreSession.objects.with_task_counts()
@@ -114,23 +139,13 @@ def _session_context(session, task_form=None, quick_add_error=None):
         .select_related("default_assignee")
         .order_by("title")
     )
-    added_template_ids = set(
-        refreshed_session.tasks.exclude(source_template__isnull=True).values_list(
-            "source_template_id", flat=True
-        )
-    )
     return {
         "session": refreshed_session,
         "task_form": task_form
         or ChoreTaskForm(household=refreshed_session.household),
         "task_groups": _task_groups(refreshed_session, done=False),
-        "completed_tasks": list(
-            refreshed_session.tasks.filter(is_done=True)
-            .select_related("assignee", "created_by", "completed_by")
-            .order_by("-completed_at")
-        ),
+        "completed_task_summaries": _completed_task_summaries(refreshed_session),
         "quick_templates": quick_templates,
-        "added_template_ids": added_template_ids,
         "quick_add_error": quick_add_error,
     }
 
@@ -262,7 +277,7 @@ def task_add(request, session_id):
             create_task(
                 session=session,
                 title=form.cleaned_data["title"],
-                quantity=form.cleaned_data["quantity"],
+                due_date=form.cleaned_data["due_date"],
                 assignee=form.cleaned_data["assignee"],
                 user=request.user,
             )
@@ -344,26 +359,49 @@ def task_toggle(request, task_id):
 
 @login_required
 @require_POST
-def task_quantity_adjust(request, task_id):
+def completed_task_add(request, session_id):
+    session = get_object_or_404(
+        sessions_for_user(request.user).filter(status=ChoreSession.Status.ACTIVE),
+        pk=session_id,
+    )
+    title = request.POST.get("title", "").strip()
+    matching_task = session.tasks.filter(is_done=True, title__iexact=title).first()
+    if matching_task is None:
+        return HttpResponseBadRequest("Choose a completed task to increase its count.")
     try:
-        delta = int(request.POST.get("delta", ""))
-    except (TypeError, ValueError):
-        return HttpResponseBadRequest("Quantity adjustment must be a whole number.")
-    if delta not in (-1, 1):
-        return HttpResponseBadRequest("Quantity adjustment must be one step at a time.")
-
-    task = get_object_or_404(tasks_for_user(request.user), pk=task_id)
-    session = task.session
-    try:
-        adjust_task_quantity(task=task, delta=delta, user=request.user)
+        add_completed_task(session=session, title=matching_task.title, user=request.user)
     except InvalidChoreOperation as error:
         messages.error(request, str(error))
-        destination = (
-            "chores:history_detail"
-            if session.status == ChoreSession.Status.COMPLETED
-            else "chores:session_detail"
+        return redirect("chores:session_detail", session_id=session.pk)
+    if _is_htmx(request):
+        return render(
+            request,
+            "chores/partials/session_interactions.html",
+            _session_context(session),
         )
-        return redirect(destination, session_id=session.pk)
+    return redirect("chores:session_detail", session_id=session.pk)
+
+
+@login_required
+@require_POST
+def completed_task_remove(request, session_id):
+    session = get_object_or_404(
+        sessions_for_user(request.user).filter(status=ChoreSession.Status.ACTIVE),
+        pk=session_id,
+    )
+    title = request.POST.get("title", "").strip()
+    matching_task = session.tasks.filter(is_done=True, title__iexact=title).first()
+    if matching_task is None:
+        return HttpResponseBadRequest("Choose a completed task to decrease its count.")
+    try:
+        remove_completed_task(
+            session=session,
+            title=matching_task.title,
+            user=request.user,
+        )
+    except InvalidChoreOperation as error:
+        messages.error(request, str(error))
+        return redirect("chores:session_detail", session_id=session.pk)
     if _is_htmx(request):
         return render(
             request,
@@ -387,7 +425,7 @@ def task_edit(request, task_id):
             task = update_task(
                 task=task,
                 title=form.cleaned_data["title"],
-                quantity=form.cleaned_data["quantity"],
+                due_date=form.cleaned_data["due_date"],
                 assignee=form.cleaned_data["assignee"],
                 user=request.user,
             )

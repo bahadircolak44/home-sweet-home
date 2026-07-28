@@ -24,6 +24,7 @@ class ChoreTaskAdmin(admin.ModelAdmin):
     list_display = (
         "title",
         "quantity",
+        "due_date",
         "session",
         "assignee",
         "is_done",

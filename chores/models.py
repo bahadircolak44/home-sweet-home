@@ -203,6 +203,7 @@ class ChoreTask(models.Model):
         ChoreSession, on_delete=models.CASCADE, related_name="tasks"
     )
     title = models.CharField(max_length=160)
+    due_date = models.DateField(null=True, blank=True)
     quantity = models.PositiveIntegerField(
         default=1, validators=[MinValueValidator(1)]
     )
@@ -242,11 +243,6 @@ class ChoreTask(models.Model):
     class Meta:
         ordering = ["created_at"]
         constraints = [
-            models.UniqueConstraint(
-                fields=["session", "source_template"],
-                condition=Q(source_template__isnull=False),
-                name="chores_template_once_per_session",
-            ),
             models.CheckConstraint(
                 condition=Q(quantity__gte=1),
                 name="chores_task_quantity_at_least_one",

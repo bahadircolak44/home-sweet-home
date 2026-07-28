@@ -28,17 +28,20 @@
                     {{ task_form.title }}
                     {% for error in task_form.title.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
                 </div>
-                <div class="chore-task-form__quantity">
-                    <label class="sr-only" for="{{ task_form.quantity.id_for_label }}">Quantity</label>
-                    {{ task_form.quantity }}
-                    {% for error in task_form.quantity.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
-                </div>
                 <div class="chore-task-form__assignee">
                     <label class="sr-only" for="{{ task_form.assignee.id_for_label }}">Assignee</label>
                     {{ task_form.assignee }}
                     {% for error in task_form.assignee.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
                 </div>
                 <button class="button button--primary chore-task-form__button" type="submit"><span aria-hidden="true">+</span> Add Task</button>
+                <details class="chore-task-form__advanced"{% if task_form.due_date.errors %} open{% endif %}>
+                    <summary>Advanced options</summary>
+                    <div>
+                        <label for="{{ task_form.due_date.id_for_label }}">Due date <span class="optional-label">(optional)</span></label>
+                        {{ task_form.due_date }}
+                        {% for error in task_form.due_date.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+                    </div>
+                </details>
             </div>
         </form>
     </section>
@@ -99,15 +102,15 @@
         {% endif %}
     </section>
 
-    {% if completed_tasks %}
+    {% if completed_task_summaries %}
         <section class="chore-task-groups chore-task-groups--completed" aria-labelledby="completed-tasks-title">
             <div class="section-heading">
                 <h2 id="completed-tasks-title">Completed</h2>
                 <span class="count-badge count-badge--muted">{{ session.done_task_count }}</span>
             </div>
             <div class="chore-task-list">
-                {% for task in completed_tasks %}
-                    {% include "chores/partials/task_row.html" with show_assignee=True %}
+                {% for completed_task in completed_task_summaries %}
+                    {% include "chores/partials/completed_task_row.html" %}
                 {% endfor %}
             </div>
         </section>

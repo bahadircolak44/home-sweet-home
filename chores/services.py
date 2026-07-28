@@ -165,7 +165,7 @@ def complete_session(*, session, user):
 
 
 @transaction.atomic
-def create_task(*, session, title, assignee, user, quantity=1):
+def create_task(*, session, title, due_date=None, assignee, user):
     locked_session = ChoreSession.objects.select_for_update().get(pk=session.pk)
     if locked_session.status != ChoreSession.Status.ACTIVE:
         raise InvalidChoreOperation("Completed sessions are read-only.")
@@ -173,7 +173,7 @@ def create_task(*, session, title, assignee, user, quantity=1):
     task = ChoreTask.objects.create(
         session=locked_session,
         title=title,
-        quantity=quantity,
+        due_date=due_date,
         assignee=assignee,
         created_by=user,
     )
@@ -196,10 +196,6 @@ def create_task_from_template(*, session, template, user):
     _validate_template(household_id=locked_session.household_id, template=locked_template)
     if not locked_template.is_active:
         raise InvalidChoreOperation("This quick-list chore is inactive.")
-    if ChoreTask.objects.filter(
-        session=locked_session, source_template=locked_template
-    ).exists():
-        raise InvalidChoreOperation("This quick-list chore has already been added.")
     _validate_assignee(
         household_id=locked_session.household_id,
         assignee=locked_template.default_assignee,
@@ -224,7 +220,7 @@ def create_task_from_template(*, session, template, user):
 
 
 @transaction.atomic
-def update_task(*, task, title, quantity, assignee, user):
+def update_task(*, task, title, due_date, assignee, user):
     locked_session = ChoreSession.objects.select_for_update().get(pk=task.session_id)
     if locked_session.status != ChoreSession.Status.ACTIVE:
         raise InvalidChoreOperation("Completed sessions are read-only.")
@@ -232,9 +228,9 @@ def update_task(*, task, title, quantity, assignee, user):
     _validate_assignee(household_id=locked_session.household_id, assignee=assignee)
     assignee_changed = locked_task.assignee_id != getattr(assignee, "pk", None)
     locked_task.title = title
-    locked_task.quantity = quantity
+    locked_task.due_date = due_date
     locked_task.assignee = assignee
-    locked_task.save(update_fields=["title", "quantity", "assignee", "updated_at"])
+    locked_task.save(update_fields=["title", "due_date", "assignee", "updated_at"])
     touch_session(locked_session.pk)
     if assignee_changed:
         _schedule_session_notification(
@@ -243,23 +239,6 @@ def update_task(*, task, title, quantity, assignee, user):
             body=_assignment_message(user=user, task=locked_task, assignee=assignee),
             url=reverse("chores:session_detail", args=[locked_session.pk]),
         )
-    return locked_task
-
-
-@transaction.atomic
-def adjust_task_quantity(*, task, delta, user):
-    locked_session = ChoreSession.objects.select_for_update().get(pk=task.session_id)
-    if locked_session.status != ChoreSession.Status.ACTIVE:
-        raise InvalidChoreOperation("Completed sessions are read-only.")
-    locked_task = ChoreTask.objects.select_for_update().get(pk=task.pk)
-    if locked_task.is_done:
-        raise InvalidChoreOperation("Completed task quantities cannot be changed.")
-    quantity = locked_task.quantity + delta
-    if quantity < 1:
-        raise InvalidChoreOperation("Task quantity cannot be less than one.")
-    locked_task.quantity = quantity
-    locked_task.save(update_fields=["quantity", "updated_at"])
-    touch_session(locked_session.pk)
     return locked_task
 
 
@@ -289,6 +268,51 @@ def toggle_task(*, task, user):
             url=reverse("chores:session_detail", args=[locked_session.pk]),
         )
     return locked_task
+
+
+@transaction.atomic
+def add_completed_task(*, session, title, user):
+    locked_session = ChoreSession.objects.select_for_update().get(pk=session.pk)
+    if locked_session.status != ChoreSession.Status.ACTIVE:
+        raise InvalidChoreOperation("Completed sessions are read-only.")
+    now = timezone.now()
+    task = ChoreTask.objects.create(
+        session=locked_session,
+        title=title,
+        is_done=True,
+        created_by=user,
+        completed_by=user,
+        completed_at=now,
+    )
+    touch_session(locked_session.pk)
+    _schedule_session_notification(
+        session=locked_session,
+        user=user,
+        body=f"{_actor_name(user)} recorded another {task.title}.",
+        url=reverse("chores:session_detail", args=[locked_session.pk]),
+    )
+    return task
+
+
+@transaction.atomic
+def remove_completed_task(*, session, title, user):
+    locked_session = ChoreSession.objects.select_for_update().get(pk=session.pk)
+    if locked_session.status != ChoreSession.Status.ACTIVE:
+        raise InvalidChoreOperation("Completed sessions are read-only.")
+    task = (
+        ChoreTask.objects.select_for_update()
+        .filter(session=locked_session, is_done=True, title__iexact=title)
+        .order_by("-completed_at", "-pk")
+        .first()
+    )
+    if task is None:
+        raise InvalidChoreOperation("Choose a completed task to decrease its count.")
+    if task.quantity > 1:
+        task.quantity -= 1
+        task.save(update_fields=["quantity", "updated_at"])
+    else:
+        task.delete()
+    touch_session(locked_session.pk)
 
 
 @transaction.atomic

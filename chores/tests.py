@@ -1,4 +1,5 @@
 import json
+from datetime import date
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
@@ -82,7 +83,6 @@ class ChoreFlowTests(TestCase):
             reverse("chores:task_add", args=[self.session.pk]),
             {
                 "title": "Clean the kitchen",
-                "quantity": 1,
                 "assignee": self.outsider.pk,
             },
         )
@@ -95,7 +95,11 @@ class ChoreFlowTests(TestCase):
 
         response = self.client.post(
             reverse("chores:task_add", args=[self.session.pk]),
-            {"title": "Clean the kitchen", "quantity": 3, "assignee": self.sam.pk},
+            {
+                "title": "Clean the kitchen",
+                "due_date": "2026-08-12",
+                "assignee": self.sam.pk,
+            },
         )
 
         self.assertRedirects(
@@ -103,12 +107,13 @@ class ChoreFlowTests(TestCase):
         )
         task = ChoreTask.objects.get(title="Clean the kitchen")
         self.assertEqual(task.assignee, self.sam)
-        self.assertEqual(task.quantity, 3)
+        self.assertEqual(task.quantity, 1)
+        self.assertEqual(task.due_date, date(2026, 8, 12))
         detail = self.client.get(reverse("chores:session_detail", args=[self.session.pk]))
         self.assertContains(detail, "Sam")
         self.assertContains(detail, "Clean the kitchen")
 
-    def test_quick_template_can_only_be_added_once_per_session(self):
+    def test_quick_template_can_be_added_multiple_times_to_a_session(self):
         self.client.force_login(self.alex)
         template_response = self.client.post(
             reverse("chores:template_create"),
@@ -126,13 +131,12 @@ class ChoreFlowTests(TestCase):
         second_response = self.client.post(quick_add_url, HTTP_HX_REQUEST="true")
 
         self.assertEqual(first_response.status_code, 200)
-        self.assertEqual(second_response.status_code, 422)
-        self.assertContains(second_response, "already been added", status_code=422)
+        self.assertEqual(second_response.status_code, 200)
         self.assertEqual(
             ChoreTask.objects.filter(
                 session=self.session, source_template=template
             ).count(),
-            1,
+            2,
         )
 
     def test_toggling_task_sets_and_clears_completion_metadata(self):
@@ -160,7 +164,7 @@ class ChoreFlowTests(TestCase):
 
         self.client.post(
             reverse("chores:task_add", args=[self.session.pk]),
-            {"title": "Vacuum the living room", "quantity": 1, "assignee": ""},
+            {"title": "Vacuum the living room", "assignee": ""},
         )
 
         self.session.refresh_from_db()
@@ -178,7 +182,7 @@ class ChoreFlowTests(TestCase):
         self.assertEqual(
             self.client.post(
                 reverse("chores:task_add", args=[self.session.pk]),
-                {"title": "Crafted task", "quantity": 1, "assignee": ""},
+                {"title": "Crafted task", "assignee": ""},
             ).status_code,
             404,
         )
@@ -225,29 +229,55 @@ class ChoreFlowTests(TestCase):
         self.assertContains(dashboard, "1</strong> active session")
         self.assertContains(dashboard, "1</strong> task remaining")
 
-    def test_task_quantity_can_be_adjusted_from_an_active_session(self):
-        task = ChoreTask.objects.create(
+    def test_completed_tasks_with_same_title_can_be_adjusted(self):
+        ChoreTask.objects.create(
             session=self.session,
             title="Clean the kitchen",
-            quantity=2,
-            assignee=self.sam,
+            is_done=True,
             created_by=self.alex,
+            completed_by=self.alex,
+            completed_at=timezone.now(),
+        )
+        ChoreTask.objects.create(
+            session=self.session,
+            title="Clean the kitchen",
+            is_done=True,
+            created_by=self.alex,
+            completed_by=self.sam,
+            completed_at=timezone.now(),
         )
         self.client.force_login(self.alex)
-        quantity_url = reverse("chores:task_quantity_adjust", args=[task.pk])
 
         response = self.client.post(
-            quantity_url, {"delta": 1}, HTTP_HX_REQUEST="true"
+            reverse("chores:completed_task_add", args=[self.session.pk]),
+            {"title": "Clean the kitchen"},
+            HTTP_HX_REQUEST="true",
         )
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "3×")
-        task.refresh_from_db()
-        self.assertEqual(task.quantity, 3)
+        self.assertContains(response, "Completed by Alex, Sam")
+        self.assertEqual(
+            ChoreTask.objects.filter(
+                session=self.session, title="Clean the kitchen", is_done=True
+            ).count(),
+            3,
+        )
 
-        self.client.post(quantity_url, {"delta": -1})
-        task.refresh_from_db()
-        self.assertEqual(task.quantity, 2)
+        response = self.client.post(
+            reverse("chores:completed_task_remove", args=[self.session.pk]),
+            {"title": "Clean the kitchen"},
+            HTTP_HX_REQUEST="true",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "2×")
+        self.assertEqual(
+            ChoreTask.objects.filter(
+                session=self.session, title="Clean the kitchen", is_done=True
+            ).count(),
+            2,
+        )
 
     def test_completed_tasks_are_grouped_at_the_bottom_with_assignee_names(self):
         ChoreTask.objects.create(
@@ -284,8 +314,8 @@ class ChoreFlowTests(TestCase):
 
         self.assertContains(response, "Still needed")
         self.assertContains(response, "Completed")
-        self.assertContains(response, "Assigned to Alex")
-        self.assertContains(response, "Assigned to Sam")
+        self.assertContains(response, "Completed by Alex")
+        self.assertContains(response, "Completed by Sam")
         self.assertLess(
             response.content.index(b'id="tasks-title"'),
             response.content.index(b'id="completed-tasks-title"'),

@@ -3,19 +3,15 @@
         <strong>{{ template.title }}</strong>
         <span>{% if template.default_assignee %}{{ template.default_assignee.get_full_name|default:template.default_assignee.get_username }}{% else %}Unassigned{% endif %}</span>
     </div>
-    {% if template.pk in added_template_ids %}
-        <span class="quick-template-row__added">Added</span>
-    {% else %}
-        <form
-            method="post"
-            action="{% url 'chores:task_quick_add' session_id=session.pk template_id=template.pk %}"
-            hx-post="{% url 'chores:task_quick_add' session_id=session.pk template_id=template.pk %}"
-            hx-target="#session-live-region"
-            hx-swap="outerHTML"
-            hx-disabled-elt="button"
-        >
-            {% csrf_token %}
-            <button class="button button--secondary button--small" type="submit">Add</button>
-        </form>
-    {% endif %}
+    <form
+        method="post"
+        action="{% url 'chores:task_quick_add' session_id=session.pk template_id=template.pk %}"
+        hx-post="{% url 'chores:task_quick_add' session_id=session.pk template_id=template.pk %}"
+        hx-target="#session-live-region"
+        hx-swap="outerHTML"
+        hx-disabled-elt="button"
+    >
+        {% csrf_token %}
+        <button class="button button--secondary button--small" type="submit">Add</button>
+    </form>
 </div>

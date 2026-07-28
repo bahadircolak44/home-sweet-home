@@ -1,0 +1,35 @@
+<article class="chore-task-row chore-task-row--done completed-task-summary">
+    <div class="chore-task-row__content">
+        <div class="chore-task-row__title-line">
+            <span class="quantity-badge">{{ completed_task.quantity }}×</span>
+            <span class="chore-task-row__title">{{ completed_task.title }}</span>
+        </div>
+        <span class="item-row__meta">Completed by {{ completed_task.completed_by_names|join:", " }}</span>
+    </div>
+    <div class="completed-task-summary__actions">
+        <form
+            method="post"
+            action="{% url 'chores:completed_task_remove' session_id=session.pk %}"
+            hx-post="{% url 'chores:completed_task_remove' session_id=session.pk %}"
+            hx-target="#session-live-region"
+            hx-swap="outerHTML"
+            hx-disabled-elt="button"
+        >
+            {% csrf_token %}
+            <input type="hidden" name="title" value="{{ completed_task.title }}">
+            <button class="button button--secondary button--small" type="submit" aria-label="Remove one completed {{ completed_task.title }}">−1</button>
+        </form>
+        <form
+            method="post"
+            action="{% url 'chores:completed_task_add' session_id=session.pk %}"
+            hx-post="{% url 'chores:completed_task_add' session_id=session.pk %}"
+            hx-target="#session-live-region"
+            hx-swap="outerHTML"
+            hx-disabled-elt="button"
+        >
+            {% csrf_token %}
+            <input type="hidden" name="title" value="{{ completed_task.title }}">
+            <button class="button button--secondary button--small" type="submit" aria-label="Add one completed {{ completed_task.title }}">+1</button>
+        </form>
+    </div>
+</article>

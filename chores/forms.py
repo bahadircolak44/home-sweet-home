@@ -51,20 +51,17 @@ class ChoreSessionForm(forms.ModelForm):
 
 
 class ChoreTaskForm(forms.ModelForm):
-    quantity = forms.IntegerField(
-        min_value=1,
-        initial=1,
-        widget=forms.NumberInput(
-            attrs={"min": 1, "inputmode": "numeric", "aria-label": "Quantity"}
-        ),
-    )
     assignee = HouseholdMemberChoiceField(
         queryset=None, required=False, empty_label="Unassigned"
+    )
+    due_date = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={"type": "date"}),
     )
 
     class Meta:
         model = ChoreTask
-        fields = ("title", "quantity", "assignee")
+        fields = ("title", "assignee", "due_date")
         widgets = {
             "title": forms.TextInput(
                 attrs={
@@ -73,10 +70,8 @@ class ChoreTaskForm(forms.ModelForm):
                     "data-add-chore-task-input": "",
                 }
             ),
-            "quantity": forms.NumberInput(
-                attrs={"min": 1, "inputmode": "numeric", "aria-label": "Quantity"}
-            ),
             "assignee": forms.Select(),
+            "due_date": forms.DateInput(attrs={"type": "date"}),
         }
 
     def __init__(self, *args, household, **kwargs):

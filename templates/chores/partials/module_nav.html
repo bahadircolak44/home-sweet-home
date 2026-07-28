@@ -1,0 +1,7 @@
+{% with current_url=request.resolver_match.url_name|default:"" %}
+<nav class="module-nav" aria-label="Household Chores navigation">
+    <a class="module-nav__link{% if current_url != 'history' and current_url != 'history_detail' and current_url != 'quick_list' and current_url != 'template_create' and current_url != 'template_edit' and current_url != 'template_delete' %} is-active{% endif %}" href="{% url 'chores:session_index' %}">Active Sessions</a>
+    <a class="module-nav__link{% if current_url == 'history' or current_url == 'history_detail' %} is-active{% endif %}" href="{% url 'chores:history' %}">History</a>
+    <a class="module-nav__link{% if current_url == 'quick_list' or current_url == 'template_create' or current_url == 'template_edit' or current_url == 'template_delete' %} is-active{% endif %}" href="{% url 'chores:quick_list' %}">Quick List</a>
+</nav>
+{% endwith %}

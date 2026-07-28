@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}Quick List · Home Sweet Home{% endblock %}
+
+{% block content %}
+<div class="page-heading">
+    <div>
+        <p class="eyebrow">{% if household %}{{ household.name }}{% else %}Shared household{% endif %}</p>
+        <h1>Quick List</h1>
+        <p>Reusable chores that can be added to a session with one tap.</p>
+    </div>
+    {% if household %}<a class="button button--primary" href="{% url 'chores:template_create' %}">New Quick-List Chore</a>{% endif %}
+</div>
+{% include "chores/partials/module_nav.html" %}
+
+{% if not household %}
+    <section class="empty-state">
+        <span class="empty-state__icon" aria-hidden="true">🔑</span>
+        <h2>No household connected</h2>
+        <p>An administrator needs to add your account to a household before you can manage reusable chores.</p>
+    </section>
+{% elif templates %}
+    <section class="quick-list-management" aria-label="Quick-list chores">
+        {% for template in templates %}
+            <article class="quick-list-management__row{% if not template.is_active %} quick-list-management__row--inactive{% endif %}">
+                <div>
+                    <h2>{{ template.title }}</h2>
+                    <p>Default assignee: {% if template.default_assignee %}{{ template.default_assignee.get_full_name|default:template.default_assignee.get_username }}{% else %}Unassigned{% endif %}</p>
+                </div>
+                <div class="quick-list-management__actions">
+                    <span class="template-status">{% if template.is_active %}Active{% else %}Inactive{% endif %}</span>
+                    <a class="button button--secondary button--small" href="{% url 'chores:template_edit' template_id=template.pk %}">Edit</a>
+                    <form method="post" action="{% url 'chores:template_toggle_active' template_id=template.pk %}">
+                        {% csrf_token %}
+                        <button class="button button--secondary button--small" type="submit">{% if template.is_active %}Deactivate{% else %}Activate{% endif %}</button>
+                    </form>
+                    <a class="danger-link" href="{% url 'chores:template_delete' template_id=template.pk %}">Remove</a>
+                </div>
+            </article>
+        {% endfor %}
+    </section>
+{% else %}
+    <section class="empty-state">
+        <span class="empty-state__icon" aria-hidden="true">⚡</span>
+        <h2>Your Quick List is empty</h2>
+        <p>Create reusable chores to add common tasks with one tap.</p>
+        <a class="button button--primary" href="{% url 'chores:template_create' %}">Create a Quick-List Chore</a>
+    </section>
+{% endif %}
+{% endblock %}

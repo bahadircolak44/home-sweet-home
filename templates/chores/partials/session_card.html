@@ -1,0 +1,26 @@
+<article class="list-card chore-session-card">
+    <a class="list-card__link" href="{% if history_card %}{% url 'chores:history_detail' session_id=session.pk %}{% else %}{% url 'chores:session_detail' session_id=session.pk %}{% endif %}" aria-label="Open {{ session.name }}">
+        <div class="list-card__top">
+            <span class="list-card__icon" aria-hidden="true">🧹</span>
+            <span class="list-card__arrow" aria-hidden="true">→</span>
+        </div>
+        <h2>{{ session.name }}</h2>
+        {% if session.notes %}<p class="chore-session-card__notes">{{ session.notes|truncatechars:120 }}</p>{% endif %}
+        {% if history_card %}
+            <p class="list-card__meta">Completed {{ session.completed_at|date:"M j, Y" }}</p>
+            <div class="list-card__stats">
+                <span><strong>{{ session.done_task_count }}</strong> of {{ session.total_task_count }} done</span>
+                <span>by {{ session.completed_by.get_full_name|default:session.completed_by.get_username }}</span>
+            </div>
+        {% else %}
+            <div class="list-card__stats">
+                <span><strong>{{ session.remaining_task_count }}</strong> remaining</span>
+                <span>{{ session.done_task_count }}/{{ session.total_task_count }} done</span>
+            </div>
+            <div class="progress-track" aria-label="{{ session.completion_percentage }}% complete">
+                <span class="progress-track__bar" style="width: {{ session.completion_percentage }}%"></span>
+            </div>
+            <p class="list-card__updated">Updated {{ session.updated_at|timesince }} ago</p>
+        {% endif %}
+    </a>
+</article>

@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }} · Home Sweet Home{% endblock %}
+
+{% block content %}
+<div class="narrow-page">
+    {% include "chores/partials/module_nav.html" %}
+    <a class="back-link" href="{% url 'chores:quick_list' %}">← Back to Quick List</a>
+    <div class="page-heading page-heading--compact">
+        <div>
+            <p class="eyebrow">Reusable household chores</p>
+            <h1>{{ page_title }}</h1>
+        </div>
+    </div>
+    <form method="post" class="panel stack-form" novalidate>
+        {% csrf_token %}
+        {% if form.non_field_errors %}<div class="form-alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+        <div class="form-field">
+            <label for="{{ form.title.id_for_label }}">Chore title</label>
+            {{ form.title }}
+            {% for error in form.title.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+        </div>
+        <div class="form-field">
+            <label for="{{ form.default_assignee.id_for_label }}">Default assignee <span class="optional-label">Optional</span></label>
+            {{ form.default_assignee }}
+            {% for error in form.default_assignee.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+        </div>
+        <div class="form-actions">
+            <button class="button button--primary" type="submit">{{ submit_label }}</button>
+            <a class="button button--secondary" href="{% url 'chores:quick_list' %}">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

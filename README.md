@@ -1,6 +1,6 @@
 # Home Sweet Home
 
-Home Sweet Home is a private household web application with a central dashboard for household modules. Its first active module provides shared grocery lists: household members can maintain multiple lists, add quantities and optional product details, purchase items together, and review completed trips in history. A Household Chores module is shown as a disabled preview for future development.
+Home Sweet Home is a private household web application with a central dashboard for household modules. Household members can maintain shared grocery lists, add quantities and optional product details, purchase items together, and review completed trips in history. They can also create shared chore sessions, assign tasks, complete them together, and review completed sessions in history.
 
 Public registration is intentionally excluded from this MVP. Users and household memberships are initially managed through Django Admin.
 
@@ -16,9 +16,11 @@ Public registration is intentionally excluded from this MVP. Users and household
 
 ## Application modules
 
-The authenticated root route displays the Home Sweet Home dashboard. Grocery Lists is available under `/groceries/`; Household Chores is intentionally marked as `Work in Progress` and does not link to an unfinished page.
+The authenticated root route displays the Home Sweet Home dashboard. Grocery Lists is available under `/groceries/` and Household Chores is available under `/chores/`.
 
 Grocery items support a required quantity and an optional description. Descriptions may contain notes, brand preferences, or product links. Valid URLs are converted to safe external links while user-entered HTML remains escaped. Active items can be edited; completed lists remain read-only.
+
+Household Chores uses focused, shared sessions such as `This Week` or `Weekend Cleaning`. Household members can add custom tasks, assign them to current household members, mark them done or not done, and view tasks grouped by assignee. The Quick List stores reusable chores with an optional default assignee; each reusable chore can be added once to a session. Completed sessions and their tasks are read-only in Chore History.
 
 ## Progressive Web App support
 
@@ -26,7 +28,7 @@ Home Sweet Home includes a web manifest, original application icons, and a minim
 
 ## Web Push notifications
 
-Home Sweet Home uses standards-based Web Push to notify other members of a household when a grocery list or item changes. Notifications are delivered directly from the Django application to each browser's Push subscription; no Firebase, queue, or separate notification service is used. The person making a grocery change is never notified about their own change. Notification text contains list and item names only: item descriptions and product URLs are never sent to the lock screen.
+Home Sweet Home uses standards-based Web Push to notify other members of a household when a grocery list, grocery item, or chore task changes. Notifications are delivered directly from the Django application to each browser's Push subscription; no Firebase, queue, or separate notification service is used. The person making a change is never notified about their own change. Notification text contains list, item, session, and task names only: item descriptions and product URLs are never sent to the lock screen.
 
 Permission and subscriptions are per device and per browser. Every household member must enable notifications separately on each installed device or browser. Signing out does not necessarily revoke operating-system notification permission, so use **Disable Notifications** before removing a personal device from someone else's account.
 

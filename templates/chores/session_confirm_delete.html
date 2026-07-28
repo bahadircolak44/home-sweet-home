@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block title %}Delete {{ session.name }} · Home Sweet Home{% endblock %}
+
+{% block content %}
+<div class="narrow-page">
+    {% include "chores/partials/module_nav.html" %}
+    <div class="confirmation-page">
+        <div class="confirmation-card confirmation-card--danger">
+            <span class="confirmation-card__icon" aria-hidden="true">🗑️</span>
+            <p class="eyebrow">🧹 {{ session.name }}</p>
+            <h1>Delete this session?</h1>
+            <p>This permanently deletes the session and every task in it. This action cannot be undone.</p>
+            <div class="confirmation-actions">
+                <a class="button button--secondary" href="{% url 'chores:session_detail' session_id=session.pk %}">Cancel</a>
+                <form method="post">
+                    {% csrf_token %}
+                    <button class="button button--danger" type="submit">Delete Session</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

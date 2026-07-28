@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}{{ session.name }} History · Home Sweet Home{% endblock %}
+
+{% block content %}
+<div class="detail-page">
+    {% include "chores/partials/module_nav.html" %}
+    <a class="back-link" href="{% url 'chores:history' %}">← Chore History</a>
+    <header class="detail-heading history-heading">
+        <div class="detail-heading__identity">
+            <span class="detail-heading__icon" aria-hidden="true">🧹</span>
+            <div>
+                <p class="eyebrow">Completed chore session</p>
+                <h1>{{ session.name }}</h1>
+                <p>{{ session.completed_at|date:"F j, Y \a\t H:i" }} · by {{ session.completed_by.get_full_name|default:session.completed_by.get_username }}</p>
+            </div>
+        </div>
+        <span class="read-only-badge">Read only</span>
+    </header>
+    {% if session.notes %}<p class="session-notes">{{ session.notes|linebreaksbr }}</p>{% endif %}
+    <section class="progress-panel" aria-label="Final chore progress">
+        <div class="progress-panel__copy">
+            <span><strong>{{ session.done_task_count }}</strong> of {{ session.total_task_count }} done</span>
+            <span>{{ session.completion_percentage }}%</span>
+        </div>
+        <div class="progress-track"><span class="progress-track__bar" style="width: {{ session.completion_percentage }}%"></span></div>
+    </section>
+    <section class="chore-task-groups history-task-groups" aria-labelledby="history-tasks-title">
+        <div class="section-heading">
+            <h2 id="history-tasks-title">Tasks</h2>
+            <span class="count-badge count-badge--muted">{{ session.total_task_count }}</span>
+        </div>
+        {% if task_groups %}
+            {% for group in task_groups %}
+                <section class="chore-task-group" aria-labelledby="history-group-{{ forloop.counter }}">
+                    <div class="chore-task-group__heading">
+                        <div>
+                            <h3 id="history-group-{{ forloop.counter }}">{{ group.title }}</h3>
+                            <p>{{ group.done_count }} of {{ group.total_count }} done</p>
+                        </div>
+                    </div>
+                    <div class="history-chore-task-list">
+                        {% for task in group.tasks %}
+                            <article class="history-item{% if task.is_done %} history-item--purchased{% endif %}">
+                                <span class="check-control" aria-hidden="true">{% if task.is_done %}✓{% else %}–{% endif %}</span>
+                                <div class="history-item__content">
+                                    <p class="history-item__text">{{ task.title }}</p>
+                                    <p class="history-item__meta">{% if task.is_done %}Completed by {{ task.completed_by.get_full_name|default:task.completed_by.get_username }}{% else %}Not done{% endif %}</p>
+                                </div>
+                            </article>
+                        {% endfor %}
+                    </div>
+                </section>
+            {% endfor %}
+        {% else %}
+            <div class="inline-empty"><span aria-hidden="true">🧺</span><p>This session was completed without any tasks.</p></div>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}

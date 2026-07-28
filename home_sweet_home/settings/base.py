@@ -34,6 +34,7 @@ INSTALLED_APPS = [
     "households.apps.HouseholdsConfig",
     "push_notifications.apps.PushNotificationsConfig",
     "shopping.apps.ShoppingConfig",
+    "chores.apps.ChoresConfig",
 ]
 
 MIDDLEWARE = [

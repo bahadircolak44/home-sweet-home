@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block title %}Complete {{ session.name }} · Home Sweet Home{% endblock %}
+
+{% block content %}
+<div class="narrow-page">
+    {% include "chores/partials/module_nav.html" %}
+    <div class="confirmation-page">
+        <div class="confirmation-card">
+            <span class="confirmation-card__icon" aria-hidden="true">{% if session.remaining_task_count %}🧹{% else %}🎉{% endif %}</span>
+            <p class="eyebrow">🧹 {{ session.name }}</p>
+            <h1>Complete this session?</h1>
+            {% if session.remaining_task_count %}
+                <p><strong>This session still has {{ session.remaining_task_count }} unfinished task{{ session.remaining_task_count|pluralize }}.</strong> You can complete it anyway, but it will become read-only in history.</p>
+            {% elif session.total_task_count %}
+                <p>Every task is done. Completing this session will move it to household history.</p>
+            {% else %}
+                <p>This session has no tasks. You can still complete it and move it to household history.</p>
+            {% endif %}
+            <div class="confirmation-actions">
+                <a class="button button--secondary" href="{% url 'chores:session_detail' session_id=session.pk %}">Return to Session</a>
+                <form method="post">
+                    {% csrf_token %}
+                    <button class="button button--primary" type="submit">{% if session.remaining_task_count %}Complete Anyway{% else %}Complete Session{% endif %}</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

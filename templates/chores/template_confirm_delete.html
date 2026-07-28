@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}Remove {{ template.title }} · Home Sweet Home{% endblock %}
+
+{% block content %}
+<div class="narrow-page">
+    {% include "chores/partials/module_nav.html" %}
+    <div class="confirmation-page">
+        <div class="confirmation-card confirmation-card--danger">
+            <span class="confirmation-card__icon" aria-hidden="true">⚡</span>
+            <p class="eyebrow">Quick-list chore</p>
+            <h1>Remove {{ template.title }}?</h1>
+            {% if template.tasks.exists %}
+                <p>This chore has already been used, so removing it will deactivate it instead. Existing and historical tasks will remain unchanged.</p>
+            {% else %}
+                <p>This removes the reusable chore. It does not affect any unrelated tasks.</p>
+            {% endif %}
+            <div class="confirmation-actions">
+                <a class="button button--secondary" href="{% url 'chores:quick_list' %}">Cancel</a>
+                <form method="post">
+                    {% csrf_token %}
+                    <button class="button button--danger" type="submit">Remove Chore</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

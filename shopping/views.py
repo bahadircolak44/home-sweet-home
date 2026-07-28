@@ -5,6 +5,7 @@ from django.http import HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_GET, require_POST
 
+from chores.services import chore_summary_for_user
 from households.services import get_household_for_user
 
 from .forms import ShoppingItemForm, ShoppingListForm
@@ -74,12 +75,18 @@ def dashboard(request):
         if household
         else {"active_list_count": 0, "remaining_item_count": 0}
     )
+    chore_summary = (
+        chore_summary_for_user(request.user)
+        if household
+        else {"active_session_count": 0, "remaining_task_count": 0}
+    )
     return render(
         request,
         "home.html",
         {
             "household": household,
             "grocery_summary": summary,
+            "chore_summary": chore_summary,
             "push_notifications_enabled": settings.PUSH_NOTIFICATIONS_ENABLED,
             "vapid_public_key": settings.VAPID_PUBLIC_KEY,
         },

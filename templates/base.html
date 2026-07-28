@@ -14,9 +14,9 @@
     <link rel="icon" href="{% static 'icons/favicon.ico' %}" sizes="any">
     <link rel="icon" type="image/png" sizes="32x32" href="{% static 'icons/favicon-32.png' %}">
     <link rel="apple-touch-icon" sizes="180x180" href="{% static 'icons/apple-touch-icon.png' %}">
-    <link rel="stylesheet" href="{% static 'css/app.css' %}?v=10">
+    <link rel="stylesheet" href="{% static 'css/app.css' %}?v=11">
     <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.7/dist/htmx.min.js" defer></script>
-    <script src="{% static 'js/app.js' %}?v=6" defer></script>
+    <script src="{% static 'js/app.js' %}?v=7" defer></script>
 </head>
 <body data-service-worker-url="{% url 'service_worker' %}">
     {% if user.is_authenticated %}
@@ -60,6 +60,10 @@
             <a class="mobile-nav__link{% if current_namespace == 'shopping' %} is-active{% endif %}" href="{% url 'shopping:active_lists' %}">
                 <span aria-hidden="true">🛒</span>
                 <span>Grocery Lists</span>
+            </a>
+            <a class="mobile-nav__link{% if current_namespace == 'chores' %} is-active{% endif %}" href="{% url 'chores:session_index' %}">
+                <span aria-hidden="true">🧹</span>
+                <span>Chores</span>
             </a>
         </nav>
         {% endwith %}

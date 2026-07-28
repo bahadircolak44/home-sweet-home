@@ -7,6 +7,13 @@ CSRF_TRUSTED_ORIGINS = env_list(
     "CSRF_TRUSTED_ORIGINS", "http://localhost:8000,http://127.0.0.1:8000"
 )
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
-LOGGING["loggers"] = {  # noqa: F405
-    "django": {"handlers": ["console"], "level": "INFO", "propagate": False}
-}
+LOGGING["loggers"].update(  # noqa: F405
+    {
+        "django": {"handlers": ["console"], "level": "INFO", "propagate": False},
+        "django.server": {
+            "handlers": ["django_server"],
+            "level": "INFO",
+            "propagate": False,
+        },
+    }
+)

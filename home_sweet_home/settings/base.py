@@ -237,6 +237,32 @@ if PUSH_NOTIFICATIONS_ENABLED:
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
-    "handlers": {"console": {"class": "logging.StreamHandler"}},
+    "filters": {
+        "redact_oauth_callback": {
+            "()": "home_sweet_home.logging_filters.RedactOAuthCallbackFilter",
+        }
+    },
+    "formatters": {
+        "django.server": {
+            "()": "django.utils.log.ServerFormatter",
+            "format": "[{server_time}] {message}",
+            "style": "{",
+        }
+    },
+    "handlers": {
+        "console": {"class": "logging.StreamHandler"},
+        "django_server": {
+            "class": "logging.StreamHandler",
+            "formatter": "django.server",
+            "filters": ["redact_oauth_callback"],
+        },
+    },
+    "loggers": {
+        "django.server": {
+            "handlers": ["django_server"],
+            "level": "INFO",
+            "propagate": False,
+        }
+    },
     "root": {"handlers": ["console"], "level": "INFO"},
 }

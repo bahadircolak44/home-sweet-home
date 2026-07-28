@@ -31,6 +31,13 @@ class GoogleOAuthError(Exception):
     pass
 
 
+class GoogleTokenExchangeError(GoogleOAuthError):
+    def __init__(self, reason="unknown", error_type="UnknownError"):
+        super().__init__("Google sign-in could not be completed.")
+        self.reason = reason
+        self.error_type = error_type
+
+
 class GoogleAccountLinkError(GoogleOAuthError):
     pass
 
@@ -79,7 +86,10 @@ def exchange_authorization_code(code):
         }
     }
     try:
-        flow = Flow.from_client_config(client_config, scopes=REQUIRED_SCOPES)
+        # The authorization request already specifies REQUIRED_SCOPES. Google may
+        # return equivalent OpenID userinfo aliases alongside those scopes; do not
+        # let oauthlib reject that harmless server response as a scope change.
+        flow = Flow.from_client_config(client_config, scopes=None)
         flow.redirect_uri = settings.GOOGLE_OAUTH_REDIRECT_URI
         flow.fetch_token(code=code)
         token_response = flow.oauth2session.token
@@ -98,7 +108,29 @@ def exchange_authorization_code(code):
     except GoogleOAuthError:
         raise
     except Exception as error:
-        raise GoogleOAuthError("Google sign-in could not be completed.") from error
+        raise GoogleTokenExchangeError(
+            _safe_oauth_error_reason(error), type(error).__name__
+        ) from error
+
+
+def _safe_oauth_error_reason(error):
+    """Return only allowlisted provider error codes; never expose OAuth responses."""
+    candidates = [
+        getattr(error, "error", ""),
+        getattr(getattr(error, "response", None), "status_code", ""),
+    ]
+    allowed_reasons = {
+        "invalid_client",
+        "invalid_grant",
+        "invalid_request",
+        "redirect_uri_mismatch",
+        "unauthorized_client",
+    }
+    for candidate in candidates:
+        normalized = str(candidate).strip().lower()
+        if normalized in allowed_reasons:
+            return normalized
+    return "unknown"
 
 
 def verify_id_token(raw_id_token):

@@ -89,6 +89,8 @@ When OAuth is enabled, Django also requires the client ID, client secret, redire
 7. Store the OAuth client secret and Fernet key in Secret Manager. Do not put them in GitHub variables, the repository, browser code, or build logs.
 8. Configure the production values as Cloud Run environment variables or Secret Manager references. Use an HTTPS production callback URL.
 
+The included continuous-deployment workflow expects the Google configuration to exist as Secret Manager secrets named `home-sweet-home-google-oauth-client-id`, `home-sweet-home-google-oauth-client-secret`, `home-sweet-home-google-oauth-redirect-uri`, `home-sweet-home-google-allowed-emails`, `home-sweet-home-google-legacy-user-map`, and `home-sweet-home-google-token-encryption-key`. Grant the function runtime service account access to every one of them before deployment.
+
 Do not use Firebase Authentication, service accounts, Workspace domain-wide delegation, or another Google API for this feature. Move the OAuth app out of Testing only when the Google publishing/verification requirements for the selected audience are satisfied.
 
 ### Sign-in and account recovery

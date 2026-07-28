@@ -70,6 +70,21 @@ Complete these actions in Google Cloud before production testing. These are owne
 
 10. When ready for broader use, move the OAuth app out of Testing in accordance with Google’s current publishing and verification requirements. Testing authorizations can expire, so users may need to reconnect during that phase.
 
+### Secret Manager names used by continuous deployment
+
+The deployment workflow reads these six Google settings from Secret Manager. Create them before deploying the revision that enables Google OAuth:
+
+| Secret name | Runtime setting |
+| --- | --- |
+| `home-sweet-home-google-oauth-client-id` | `GOOGLE_OAUTH_CLIENT_ID` |
+| `home-sweet-home-google-oauth-client-secret` | `GOOGLE_OAUTH_CLIENT_SECRET` |
+| `home-sweet-home-google-oauth-redirect-uri` | `GOOGLE_OAUTH_REDIRECT_URI` |
+| `home-sweet-home-google-allowed-emails` | `GOOGLE_ALLOWED_EMAILS` |
+| `home-sweet-home-google-legacy-user-map` | `GOOGLE_LEGACY_USER_MAP` |
+| `home-sweet-home-google-token-encryption-key` | `GOOGLE_TOKEN_ENCRYPTION_KEY` |
+
+Grant the Cloud Run function runtime service account `roles/secretmanager.secretAccessor` on each secret. Continuous deployment enables OAuth and Calendar support, sets the event duration to 30 minutes, and keeps password sign-in enabled. Do not put any of these values in GitHub Actions variables.
+
 ## What is already implemented
 
 ### Configuration and dependencies

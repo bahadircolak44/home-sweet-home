@@ -1,4 +1,5 @@
 import secrets
+import logging
 
 from django.conf import settings
 from django.contrib import messages
@@ -17,6 +18,7 @@ from .models import GoogleAccountConnection
 from .oauth import (
     GoogleAccountLinkError,
     GoogleOAuthError,
+    GoogleTokenExchangeError,
     authorization_url,
     exchange_authorization_code,
     link_google_identity,
@@ -30,6 +32,7 @@ from .services import sync_household_future_topics, sync_future_topics_for_user
 STATE_SESSION_KEY = "google_oauth_state"
 NEXT_SESSION_KEY = "google_oauth_next"
 MODE_SESSION_KEY = "google_oauth_mode"
+logger = logging.getLogger(__name__)
 
 
 def _safe_next_url(request, value):
@@ -100,14 +103,32 @@ def callback(request):
 
     try:
         token_result = exchange_authorization_code(request.GET["code"])
+    except GoogleTokenExchangeError as error:
+        logger.warning(
+            "Google OAuth callback failed during authorization-code exchange: %s (%s).",
+            error.reason,
+            error.error_type,
+        )
+        messages.error(request, "Google sign-in could not be completed. Please try again.")
+        return redirect("login")
+    except GoogleOAuthError:
+        logger.warning("Google OAuth callback failed during authorization-code exchange.")
+        messages.error(request, "Google sign-in could not be completed. Please try again.")
+        return redirect("login")
+    try:
         identity = verify_id_token(token_result.id_token)
+    except GoogleOAuthError:
+        logger.warning("Google OAuth callback failed during ID token verification.")
+        messages.error(request, "Google sign-in could not be completed. Please try again.")
+        return redirect("login")
+    try:
         if mode == "reconnect" and reconnect_user_id != resolve_google_identity_user(identity).pk:
             messages.error(request, "Reconnect the Google account linked to your user.")
             return redirect("google_integration:status")
         connection, _created, received_refresh_token = link_google_identity(
             identity=identity, token_result=token_result
         )
-    except (GoogleOAuthError, GoogleAccountLinkError):
+    except GoogleAccountLinkError:
         messages.error(
             request,
             "This Google account is not linked to a Home Sweet Home user.",

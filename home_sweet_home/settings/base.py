@@ -35,6 +35,7 @@ INSTALLED_APPS = [
     "push_notifications.apps.PushNotificationsConfig",
     "shopping.apps.ShoppingConfig",
     "chores.apps.ChoresConfig",
+    "talk_later.apps.TalkLaterConfig",
 ]
 
 MIDDLEWARE = [
@@ -110,6 +111,7 @@ LOGOUT_REDIRECT_URL = "login"
 URLIZE_ASSUME_HTTPS = True
 
 PUSH_NOTIFICATIONS_ENABLED = env_bool("PUSH_NOTIFICATIONS_ENABLED", False)
+TALK_LATER_REMINDER_JOB_TOKEN = os.getenv("TALK_LATER_REMINDER_JOB_TOKEN", "").strip()
 VAPID_PUBLIC_KEY = os.getenv("VAPID_PUBLIC_KEY", "").strip()
 VAPID_SUBJECT = os.getenv("VAPID_SUBJECT", "").strip()
 _vapid_private_key_path = os.getenv("VAPID_PRIVATE_KEY_PATH", "").strip()

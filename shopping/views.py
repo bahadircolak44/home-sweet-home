@@ -7,6 +7,7 @@ from django.views.decorators.http import require_GET, require_POST
 
 from chores.services import chore_summary_for_user
 from households.services import get_household_for_user
+from talk_later.services import talk_later_summary_for_user
 
 from .forms import ShoppingItemForm, ShoppingListForm
 from .models import ShoppingList
@@ -80,6 +81,11 @@ def dashboard(request):
         if household
         else {"active_session_count": 0, "remaining_task_count": 0}
     )
+    talk_later_summary = (
+        talk_later_summary_for_user(request.user)
+        if household
+        else {"pending_topic_count": 0, "next_scheduled_for": None}
+    )
     return render(
         request,
         "home.html",
@@ -87,6 +93,7 @@ def dashboard(request):
             "household": household,
             "grocery_summary": summary,
             "chore_summary": chore_summary,
+            "talk_later_summary": talk_later_summary,
             "push_notifications_enabled": settings.PUSH_NOTIFICATIONS_ENABLED,
             "vapid_public_key": settings.VAPID_PUBLIC_KEY,
         },

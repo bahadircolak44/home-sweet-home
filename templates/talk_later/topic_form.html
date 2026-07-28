@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }} · Talk Later · Home Sweet Home{% endblock %}
+
+{% block content %}
+<div class="narrow-page">
+    <a class="back-link" href="{% if topic %}{% url 'talk_later:topic_detail' topic_id=topic.pk %}{% else %}{% url 'talk_later:topic_index' %}{% endif %}">← Back to Talk Later</a>
+    <div class="page-heading page-heading--compact">
+        <div>
+            <p class="eyebrow">💬 Talk Later</p>
+            <h1>{{ page_title }}</h1>
+            <p>Save a topic now and choose a reminder only when it is useful.</p>
+        </div>
+    </div>
+    <form method="post" class="panel stack-form" novalidate>
+        {% csrf_token %}
+        {% if form.non_field_errors %}<div class="form-alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+        <div class="form-field">
+            <label for="{{ form.title.id_for_label }}">Topic</label>
+            {{ form.title }}
+            {% for error in form.title.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+        </div>
+        <div class="form-field">
+            <label for="{{ form.scheduled_for.id_for_label }}">Reminder date and time <span class="optional-label">optional</span></label>
+            {{ form.scheduled_for }}
+            <p class="field-help">Leave this empty when the topic does not need a reminder.</p>
+            {% for error in form.scheduled_for.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+        </div>
+        <div class="form-field">
+            <label for="{{ form.notes.id_for_label }}">Notes <span class="optional-label">optional</span></label>
+            {{ form.notes }}
+            {% for error in form.notes.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+        </div>
+        <div class="form-actions">
+            <button class="button button--primary" type="submit">{{ submit_label }}</button>
+            <a class="button button--secondary" href="{% if topic %}{% url 'talk_later:topic_detail' topic_id=topic.pk %}{% else %}{% url 'talk_later:topic_index' %}{% endif %}">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

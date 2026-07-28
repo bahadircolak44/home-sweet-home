@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}Delete {{ topic.title }} · Talk Later · Home Sweet Home{% endblock %}
+
+{% block content %}
+<div class="narrow-page">
+    <div class="confirmation-page">
+        <div class="confirmation-card confirmation-card--danger">
+            <span class="confirmation-card__icon" aria-hidden="true">🗑️</span>
+            <p class="eyebrow">💬 {{ topic.title }}</p>
+            <h1>Delete this topic?</h1>
+            <p>This permanently deletes the topic and any future reminder. This action cannot be undone.</p>
+            <div class="confirmation-actions">
+                <a class="button button--secondary" href="{% url 'talk_later:topic_detail' topic_id=topic.pk %}">Cancel</a>
+                <form method="post">
+                    {% csrf_token %}
+                    <button class="button button--danger" type="submit">Delete Topic</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

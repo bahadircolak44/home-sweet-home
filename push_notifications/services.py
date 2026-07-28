@@ -1,5 +1,6 @@
 import json
 import logging
+from dataclasses import dataclass
 from datetime import timedelta
 from functools import partial
 
@@ -16,6 +17,12 @@ logger = logging.getLogger(__name__)
 PUSH_TTL_SECONDS = 300
 PUSH_TIMEOUT_SECONDS = 5
 NOTIFICATION_COOLDOWN = timedelta(minutes=10)
+
+
+@dataclass(frozen=True)
+class PushDeliveryResult:
+    attempted: int = 0
+    successful: int = 0
 
 
 def _push_status_code(error):
@@ -106,6 +113,42 @@ def send_to_household_members(*, household_id, actor_user_id, payload):
         if not _record_activity_and_claim_notification(subscription.pk):
             continue
         send_push_notification(subscription, payload)
+
+
+def send_scheduled_reminder_to_household(*, household_id, payload):
+    """Deliver a scheduled reminder to every current household device.
+
+    Scheduled reminders deliberately do not use activity cooldown tracking and include
+    the device belonging to the person who created the topic.
+    """
+    if not settings.PUSH_NOTIFICATIONS_ENABLED:
+        return PushDeliveryResult()
+
+    safe_payload = {
+        "title": str(payload.get("title", "Talk Later"))[:120],
+        "body": str(payload.get("body", ""))[:300],
+        "url": str(payload.get("url", "/"))[:500],
+        "tag": str(payload.get("tag", ""))[:120],
+    }
+    subscriptions = (
+        PushSubscription.objects.filter(
+            user__household_memberships__household_id=household_id
+        )
+        .select_related("user")
+        .distinct()
+    )
+    attempted = successful = 0
+    for subscription in subscriptions:
+        attempted += 1
+        try:
+            if send_push_notification(subscription, safe_payload):
+                successful += 1
+        except Exception:
+            # Keep a single unexpected device failure from blocking other devices.
+            logger.warning(
+                "Scheduled push delivery failed for subscription id=%s.", subscription.pk
+            )
+    return PushDeliveryResult(attempted=attempted, successful=successful)
 
 
 def schedule_household_notification(*, household_id, actor_user_id, payload):

@@ -1,0 +1,25 @@
+<article class="talk-later-topic{% if completed_card %} talk-later-topic--done{% endif %}">
+    <div class="talk-later-topic__content">
+        <div class="talk-later-topic__heading">
+            {% if completed_card %}<span class="talk-later-topic__check" aria-label="Done">✓</span>{% endif %}
+            <a href="{% url 'talk_later:topic_detail' topic_id=topic.pk %}">{{ topic.title }}</a>
+        </div>
+        {% if topic.notes %}<p class="talk-later-topic__notes">{{ topic.notes|truncatechars:180 }}</p>{% endif %}
+        <p class="talk-later-topic__meta">
+            {% if topic.scheduled_for %}
+                <span{% if not completed_card and topic.scheduled_for < now %} class="talk-later-topic__overdue"{% endif %}>{{ topic.scheduled_for|date:"D, j M Y, H:i" }}</span>
+            {% else %}
+                No reminder scheduled
+            {% endif %}
+            <span aria-hidden="true">·</span>
+            Created by {{ topic.created_by.get_full_name|default:topic.created_by.get_username }}
+        </p>
+    </div>
+    {% if not completed_card %}
+        <form method="post" action="{% url 'talk_later:topic_toggle' topic_id=topic.pk %}" class="talk-later-topic__action">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="index">
+            <button class="button button--secondary button--small" type="submit">Mark Done</button>
+        </form>
+    {% endif %}
+</article>

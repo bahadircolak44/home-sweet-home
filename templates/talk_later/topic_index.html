@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}Talk Later · Home Sweet Home{% endblock %}
+
+{% block content %}
+<div class="page-heading">
+    <div>
+        <p class="eyebrow">{% if household %}{{ household.name }}{% else %}Shared household{% endif %}</p>
+        <h1>Talk Later</h1>
+        <p>Save topics to discuss together and get reminded at the right time.</p>
+    </div>
+    {% if household %}<a class="button button--primary" href="{% url 'talk_later:topic_create' %}">Add Topic</a>{% endif %}
+</div>
+
+{% if not household %}
+    <section class="empty-state">
+        <span class="empty-state__icon" aria-hidden="true">🔑</span>
+        <h2>No household connected</h2>
+        <p>Your account is ready, but an administrator needs to add it to a household before you can save discussion topics.</p>
+    </section>
+{% else %}
+    <section class="talk-later-quick-add panel" aria-labelledby="quick-add-title">
+        <div>
+            <p class="eyebrow">Quick add</p>
+            <h2 id="quick-add-title">Add something to discuss</h2>
+        </div>
+        <form method="post" class="talk-later-quick-add__form" novalidate>
+            {% csrf_token %}
+            {% if form.non_field_errors %}<div class="form-alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+            <div class="talk-later-quick-add__main">
+                <div class="talk-later-quick-add__field">
+                    <label class="sr-only" for="{{ form.title.id_for_label }}">Topic title</label>
+                    {{ form.title }}
+                    {% for error in form.title.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+                </div>
+                <div class="talk-later-quick-add__field talk-later-quick-add__schedule">
+                    <label class="sr-only" for="{{ form.scheduled_for.id_for_label }}">Optional reminder date and time</label>
+                    {{ form.scheduled_for }}
+                    {% for error in form.scheduled_for.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+                </div>
+                <button class="button button--primary talk-later-quick-add__button" type="submit">Add Topic</button>
+            </div>
+            <details class="talk-later-quick-add__details">
+                <summary>Add details</summary>
+                <label for="{{ form.notes.id_for_label }}">Notes <span class="optional-label">optional</span></label>
+                {{ form.notes }}
+                {% for error in form.notes.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+            </details>
+        </form>
+    </section>
+
+    {% if topic_groups %}
+        <div class="talk-later-groups">
+            {% for group_title, topics in topic_groups %}
+                <section class="talk-later-group" aria-labelledby="group-{{ forloop.counter }}">
+                    <h2 id="group-{{ forloop.counter }}">{{ group_title }}</h2>
+                    <div class="talk-later-topic-list">
+                        {% for topic in topics %}
+                            {% include "talk_later/partials/topic_card.html" %}
+                        {% endfor %}
+                    </div>
+                </section>
+            {% endfor %}
+        </div>
+    {% else %}
+        <section class="empty-state talk-later-empty-state">
+            <span class="empty-state__icon" aria-hidden="true">💬</span>
+            <h2>Nothing to discuss later yet.</h2>
+            <p>Save a topic now and come back to it at the right time.</p>
+        </section>
+    {% endif %}
+
+    {% if completed_topics %}
+        <section class="talk-later-completed" aria-labelledby="completed-title">
+            <h2 id="completed-title">Completed</h2>
+            <div class="talk-later-topic-list">
+                {% for topic in completed_topics %}
+                    {% include "talk_later/partials/topic_card.html" with completed_card=True %}
+                {% endfor %}
+            </div>
+        </section>
+    {% endif %}
+{% endif %}
+{% endblock %}

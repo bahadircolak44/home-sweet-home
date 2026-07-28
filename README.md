@@ -1,6 +1,6 @@
 # Home Sweet Home
 
-Home Sweet Home is a private household web application with a central dashboard for household modules. Household members can maintain shared grocery lists, add quantities and optional product details, purchase items together, and review completed trips in history. They can also create shared chore sessions, assign tasks, complete them together, and review completed sessions in history.
+Home Sweet Home is a private household web application with a central dashboard for household modules. Household members can maintain shared grocery lists, add quantities and optional product details, purchase items together, and review completed trips in history. They can also create shared chore sessions, assign tasks, complete them together, and review completed sessions in history. Talk Later stores shared topics to discuss, with an optional reminder at the right time.
 
 Public registration is intentionally excluded from this MVP. Users and household memberships are initially managed through Django Admin.
 
@@ -16,11 +16,13 @@ Public registration is intentionally excluded from this MVP. Users and household
 
 ## Application modules
 
-The authenticated root route displays the Home Sweet Home dashboard. Grocery Lists is available under `/groceries/` and Household Chores is available under `/chores/`.
+The authenticated root route displays the Home Sweet Home dashboard. Grocery Lists is available under `/groceries/`, Household Chores is available under `/chores/`, and Talk Later is available under `/talk-later/`.
 
 Grocery items support a required quantity and an optional description. Descriptions may contain notes, brand preferences, or product links. Valid URLs are converted to safe external links while user-entered HTML remains escaped. Active items can be edited; completed lists remain read-only.
 
 Household Chores uses focused, shared sessions such as `This Week` or `Weekend Cleaning`. Household members can add custom tasks, assign them to current household members, mark them done or not done, and view tasks grouped by assignee. The Quick List stores reusable chores with an optional default assignee; each reusable chore can be added once to a session. Completed sessions and their tasks are read-only in Chore History.
+
+Talk Later is intentionally small: add a topic, optionally choose a local date and time, and mark it done after discussing it. Scheduled topics send one Web Push reminder to every subscribed device for current household members, including the person who created it. Marking a topic done prevents a future reminder; reopening an already processed reminder does not send it again unless the topic is explicitly rescheduled. Notes stay in the app and are never included in the notification.
 
 ## Progressive Web App support
 
@@ -33,6 +35,8 @@ Home Sweet Home uses standards-based Web Push to notify other members of a house
 Permission and subscriptions are per device and per browser. Every household member must enable notifications separately on each installed device or browser. Signing out does not necessarily revoke operating-system notification permission, so use **Disable Notifications** before removing a personal device from someone else's account.
 
 To avoid notification noise, each receiving device tracks household grocery activity. The first grocery change sends a notification; later changes reset a ten-minute quiet period without sending more notifications. The first new change after ten minutes of inactivity sends a new notification.
+
+Talk Later scheduled reminders do not use that grocery activity cooldown. They are processed once for a schedule, including when a household has no active subscriptions. Notification permission remains per browser and device, so every device that should receive a reminder must enable notifications separately.
 
 ### Generate local VAPID keys
 
@@ -52,9 +56,68 @@ PUSH_NOTIFICATIONS_ENABLED=True
 VAPID_PUBLIC_KEY=your-application-server-key
 VAPID_PRIVATE_KEY_PATH=private_key.pem
 VAPID_SUBJECT=mailto:notifications@example.com
+TALK_LATER_REMINDER_JOB_TOKEN=replace-with-a-long-random-secret
 ```
 
 `VAPID_PRIVATE_KEY_PATH` may be relative to the repository root locally or an absolute path in production. When `PUSH_NOTIFICATIONS_ENABLED=True`, the application fails at startup if any VAPID setting is missing or the private-key path does not point to a file.
+
+### Test Talk Later reminders locally
+
+1. Start Docker and enable notifications in each test browser or device.
+2. Create a Talk Later topic one or two minutes ahead.
+3. Run the processor:
+
+```bash
+docker compose exec web python manage.py process_talk_later_reminders
+```
+
+4. Verify the notification opens the topic when selected.
+5. Run the command again and verify that no duplicate reminder is sent.
+
+The command accepts `--limit` for a smaller batch. The scheduler endpoint can also be called locally with the token from `.env`:
+
+```bash
+curl -X POST -H "X-Reminder-Token: replace-with-local-token" http://127.0.0.1:8000/internal/talk-later/process-reminders/
+```
+
+### Run Talk Later reminders with Cloud Scheduler
+
+Exact-time reminders need server-side polling. The application does not add a queue or background worker, so the service owner must configure Cloud Scheduler after deploying a revision with push enabled.
+
+1. Generate a token with `openssl rand -hex 32`.
+2. Store it as the Cloud Run environment variable `TALK_LATER_REMINDER_JOB_TOKEN`.
+3. Deploy a new revision.
+4. Create a Google Cloud Scheduler HTTP job with:
+   - Schedule: `* * * * *`
+   - Time zone: `Europe/Amsterdam`
+   - Method: `POST`
+   - URL: `https://<cloud-run-url>/internal/talk-later/process-reminders/`
+   - Header: `X-Reminder-Token: <same-secret>`
+5. Use **Run now** and verify HTTP 200.
+6. Schedule a test topic a few minutes ahead.
+7. Verify all subscribed household devices receive one reminder.
+
+For example, adapt the following placeholders to the deployed service:
+
+```bash
+gcloud scheduler jobs create http talk-later-reminders \
+  --schedule="* * * * *" \
+  --time-zone="Europe/Amsterdam" \
+  --uri="https://<cloud-run-url>/internal/talk-later/process-reminders/" \
+  --http-method=POST \
+  --headers="X-Reminder-Token=<same-secret>"
+```
+
+Disabling Scheduler stops timed reminders. A missing subscription or denied device permission means that device cannot receive a reminder. The scheduler token is separate from the VAPID private key. If VAPID keys change, devices must subscribe again.
+
+### Talk Later troubleshooting
+
+- If push is disabled, reminder processing safely does nothing until `PUSH_NOTIFICATIONS_ENABLED=True` and the VAPID configuration is valid.
+- If no subscriptions are active, a due topic is recorded as processed without a delivery; enable notifications on the intended device before scheduling another test.
+- If a device denied permission, re-enable it in the browser or operating-system notification settings and subscribe again from the dashboard.
+- If scheduled reminders never arrive, verify that Cloud Scheduler is enabled, its time zone is `Europe/Amsterdam`, and the job is returning HTTP 200.
+- HTTP 403 from the internal endpoint means its `X-Reminder-Token` does not exactly match `TALK_LATER_REMINDER_JOB_TOKEN`.
+- If the VAPID keys changed, existing devices must subscribe again.
 
 ### Enable, test, and disable on a device
 

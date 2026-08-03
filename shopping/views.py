@@ -131,6 +131,7 @@ def list_create(request):
             household=household,
             name=form.cleaned_data["name"],
             icon=form.cleaned_data["icon"],
+            static_list=form.cleaned_data["static_list"],
             user=request.user,
         )
         messages.success(request, "Grocery list created.")
@@ -158,15 +159,13 @@ def list_edit(request, list_id):
         lists_for_user(request.user).filter(status=ShoppingList.Status.ACTIVE),
         pk=list_id,
     )
-    if shopping_list.is_fixed:
-        messages.info(request, "This fixed grocery list cannot be renamed.")
-        return redirect("shopping:list_detail", list_id=shopping_list.pk)
     form = ShoppingListForm(request.POST or None, instance=shopping_list)
     if request.method == "POST" and form.is_valid():
         shopping_list = update_list(
             shopping_list=shopping_list,
             name=form.cleaned_data["name"],
             icon=form.cleaned_data["icon"],
+            static_list=form.cleaned_data["static_list"],
             user=request.user,
         )
         messages.success(request, "Grocery list updated.")
@@ -189,9 +188,6 @@ def list_delete(request, list_id):
         lists_for_user(request.user).filter(status=ShoppingList.Status.ACTIVE),
         pk=list_id,
     )
-    if shopping_list.is_fixed:
-        messages.info(request, "This fixed grocery list cannot be deleted.")
-        return redirect("shopping:list_detail", list_id=shopping_list.pk)
     if request.method == "POST":
         try:
             delete_list(shopping_list=shopping_list, user=request.user)
@@ -213,8 +209,23 @@ def list_complete(request, list_id):
     )
     shopping_list = ShoppingList.objects.with_item_counts().get(pk=shopping_list.pk)
     if request.method == "POST":
+        if shopping_list.static_list and request.POST.get("confirm_static_completion") != "on":
+            messages.error(
+                request,
+                "Confirm that you want to complete this static list first.",
+            )
+            return render(
+                request,
+                "shopping/list_complete_confirmation.html",
+                {"shopping_list": shopping_list},
+                status=422,
+            )
         try:
-            completed = complete_list(shopping_list=shopping_list, user=request.user)
+            completed = complete_list(
+                shopping_list=shopping_list,
+                user=request.user,
+                confirm_static=shopping_list.static_list,
+            )
         except InvalidShoppingOperation as error:
             messages.error(request, str(error))
             return redirect("shopping:active_lists")

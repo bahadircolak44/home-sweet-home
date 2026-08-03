@@ -52,6 +52,7 @@ class ShoppingFlowTests(TestCase):
             name="Albert",
             icon="albert-heijn",
             list_type=ShoppingList.ListType.ALBERT,
+            static_list=True,
             created_by=self.alex,
         )
 
@@ -162,11 +163,25 @@ class ShoppingFlowTests(TestCase):
             2,
         )
 
-    def test_fixed_list_can_be_completed_when_needed(self):
+    def test_static_list_requires_explicit_confirmation_before_completion(self):
         self.client.force_login(self.alex)
 
         response = self.client.post(
             reverse("shopping:list_complete", args=[self.shopping_list.pk])
+        )
+
+        self.assertEqual(response.status_code, 422)
+        self.assertContains(
+            response,
+            "Confirm that you want to complete this static list first.",
+            status_code=422,
+        )
+        self.shopping_list.refresh_from_db()
+        self.assertEqual(self.shopping_list.status, ShoppingList.Status.ACTIVE)
+
+        response = self.client.post(
+            reverse("shopping:list_complete", args=[self.shopping_list.pk]),
+            {"confirm_static_completion": "on"},
         )
 
         self.assertRedirects(
@@ -175,7 +190,7 @@ class ShoppingFlowTests(TestCase):
         self.shopping_list.refresh_from_db()
         self.assertEqual(self.shopping_list.status, ShoppingList.Status.COMPLETED)
 
-    def test_dynamic_list_can_be_created(self):
+    def test_lists_can_be_created_as_dynamic_or_static(self):
         self.client.force_login(self.alex)
 
         response = self.client.post(
@@ -185,9 +200,37 @@ class ShoppingFlowTests(TestCase):
 
         dynamic_list = ShoppingList.objects.get(household=self.home, name="Weekend")
         self.assertIsNone(dynamic_list.list_type)
+        self.assertFalse(dynamic_list.static_list)
         self.assertRedirects(
             response, reverse("shopping:list_detail", args=[dynamic_list.pk])
         )
+
+        response = self.client.post(
+            reverse("shopping:list_create"),
+            {"name": "Monthly", "icon": "📦", "static_list": "on"},
+        )
+
+        static_list = ShoppingList.objects.get(household=self.home, name="Monthly")
+        self.assertTrue(static_list.static_list)
+        self.assertRedirects(
+            response, reverse("shopping:list_detail", args=[static_list.pk])
+        )
+
+    def test_starter_list_is_editable_and_can_be_made_dynamic(self):
+        self.client.force_login(self.alex)
+
+        response = self.client.post(
+            reverse("shopping:list_edit", args=[self.shopping_list.pk]),
+            {"name": "Albert weekly", "icon": "📦"},
+        )
+
+        self.assertRedirects(
+            response, reverse("shopping:list_detail", args=[self.shopping_list.pk])
+        )
+        self.shopping_list.refresh_from_db()
+        self.assertEqual(self.shopping_list.name, "Albert weekly")
+        self.assertEqual(self.shopping_list.icon, "📦")
+        self.assertFalse(self.shopping_list.static_list)
 
     def test_quantity_rejects_zero_and_negative_values(self):
         self.client.force_login(self.alex)

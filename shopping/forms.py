@@ -23,9 +23,15 @@ class HomeAuthenticationForm(AuthenticationForm):
 
 
 class ShoppingListForm(forms.ModelForm):
+    static_list = forms.BooleanField(
+        required=False,
+        label="Keep this as a static list",
+        help_text="It stays active unless someone explicitly confirms completion.",
+    )
+
     class Meta:
         model = ShoppingList
-        fields = ("name", "icon")
+        fields = ("name", "icon", "static_list")
         widgets = {
             "name": forms.TextInput(
                 attrs={"placeholder": "Weekly groceries", "autofocus": True}

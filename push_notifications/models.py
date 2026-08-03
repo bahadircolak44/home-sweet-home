@@ -35,3 +35,20 @@ class PushSubscription(models.Model):
 
     def __str__(self):
         return f"{self.user.get_username()} on {self.endpoint_host}"
+
+
+class ReleaseAnnouncement(models.Model):
+    """An idempotency record for a deployment-wide Web Push announcement."""
+
+    release_id = models.CharField(max_length=128, unique=True)
+    notes = models.TextField()
+    attempted_subscription_count = models.PositiveIntegerField(default=0)
+    successful_delivery_count = models.PositiveIntegerField(default=0)
+    announced_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return self.release_id

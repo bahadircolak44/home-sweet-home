@@ -81,6 +81,10 @@ class ShoppingList(models.Model):
     list_type = models.CharField(
         max_length=32, choices=ListType.choices, null=True, blank=True
     )
+    static_list = models.BooleanField(
+        default=False,
+        help_text="Static lists need an extra confirmation before completion.",
+    )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
@@ -136,8 +140,13 @@ class ShoppingList(models.Model):
         return f"{self.icon} {self.name}"
 
     @property
+    def is_static(self):
+        return self.static_list
+
+    @property
     def is_fixed(self):
-        return self.list_type in self.ListType.values
+        """Compatibility alias for templates or integrations using the old name."""
+        return self.is_static
 
     @property
     def icon_asset(self):

@@ -17,9 +17,15 @@
         {% else %}
             <p>This list has no items. You can still complete it and move it to your household history.</p>
         {% endif %}
+        {% if shopping_list.static_list %}
+            <label class="checkbox-label confirmation-card__static-confirmation">
+                <input type="checkbox" name="confirm_static_completion" form="complete-list-form" required>
+                <span>I understand this static list will be moved to history.</span>
+            </label>
+        {% endif %}
         <div class="confirmation-actions">
             <a class="button button--secondary" href="{% url 'shopping:list_detail' list_id=shopping_list.pk %}">Return to List</a>
-            <form method="post">
+            <form method="post" id="complete-list-form">
                 {% csrf_token %}
                 <button class="button button--primary" type="submit">{% if shopping_list.remaining_item_count %}Complete Anyway{% else %}Complete Shopping{% endif %}</button>
             </form>

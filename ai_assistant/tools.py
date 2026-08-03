@@ -1,8 +1,8 @@
 COMMAND_TOOLS = [
     {
         "type": "function",
-        "name": "propose_add_grocery_item",
-        "description": "Propose one grocery item for an active grocery list.",
+        "name": "propose_add_grocery_items",
+        "description": "Propose one or more grocery items for one active grocery list.",
         "strict": True,
         "parameters": {
             "type": "object",
@@ -12,24 +12,37 @@ COMMAND_TOOLS = [
                     "type": "integer",
                     "description": "Authorized active list ID.",
                 },
-                "item_name": {
-                    "type": "string",
-                    "maxLength": 255,
-                    "description": "Item name.",
-                },
-                "quantity": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "maximum": 99,
-                    "description": "Number of items.",
-                },
-                "description": {
-                    "type": "string",
-                    "maxLength": 1000,
-                    "description": "Optional item detail.",
+                "items": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 20,
+                    "description": "Items to add to the selected list.",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "properties": {
+                            "item_name": {
+                                "type": "string",
+                                "maxLength": 255,
+                                "description": "Item name.",
+                            },
+                            "quantity": {
+                                "type": "integer",
+                                "minimum": 1,
+                                "maximum": 99,
+                                "description": "Number of items.",
+                            },
+                            "description": {
+                                "type": "string",
+                                "maxLength": 1000,
+                                "description": "Optional item detail.",
+                            },
+                        },
+                        "required": ["item_name", "quantity", "description"],
+                    },
                 },
             },
-            "required": ["shopping_list_id", "item_name", "quantity", "description"],
+            "required": ["shopping_list_id", "items"],
         },
     },
     {

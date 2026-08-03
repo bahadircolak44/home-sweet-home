@@ -48,7 +48,12 @@ def ensure_fixed_lists_for_user(user):
             ShoppingList.objects.get_or_create(
                 household_id=household_id,
                 list_type=list_type,
-                defaults={"name": name, "icon": icon, "created_by": user},
+                defaults={
+                    "name": name,
+                    "icon": icon,
+                    "static_list": True,
+                    "created_by": user,
+                },
             )
 
 
@@ -146,11 +151,12 @@ def touch_list(shopping_list_id):
 
 
 @transaction.atomic
-def create_list(*, household, name, icon, user):
+def create_list(*, household, name, icon, static_list=False, user):
     shopping_list = ShoppingList.objects.create(
         household=household,
         name=name,
         icon=icon,
+        static_list=static_list,
         created_by=user,
     )
     _schedule_list_notification(
@@ -163,15 +169,14 @@ def create_list(*, household, name, icon, user):
 
 
 @transaction.atomic
-def update_list(*, shopping_list, name, icon, user):
+def update_list(*, shopping_list, name, icon, static_list=False, user):
     locked_list = ShoppingList.objects.select_for_update().get(pk=shopping_list.pk)
     if locked_list.status != ShoppingList.Status.ACTIVE:
         raise InvalidShoppingOperation("Completed lists are read-only.")
-    if locked_list.is_fixed:
-        raise InvalidShoppingOperation("Fixed grocery lists cannot be renamed.")
     locked_list.name = name
     locked_list.icon = icon
-    locked_list.save(update_fields=["name", "icon", "updated_at"])
+    locked_list.static_list = static_list
+    locked_list.save(update_fields=["name", "icon", "static_list", "updated_at"])
     _schedule_list_notification(
         shopping_list=locked_list,
         user=user,
@@ -186,8 +191,6 @@ def delete_list(*, shopping_list, user):
     locked_list = ShoppingList.objects.select_for_update().get(pk=shopping_list.pk)
     if locked_list.status != ShoppingList.Status.ACTIVE:
         raise InvalidShoppingOperation("Completed lists are read-only.")
-    if locked_list.is_fixed:
-        raise InvalidShoppingOperation("Fixed grocery lists cannot be deleted.")
     household_id = locked_list.household_id
     list_id = locked_list.pk
     list_name = locked_list.name
@@ -226,6 +229,38 @@ def add_item(*, shopping_list, text, quantity, description, user):
         url=reverse("shopping:list_detail", args=[locked_list.pk]),
     )
     return item
+
+
+@transaction.atomic
+def add_items(*, shopping_list, items, user):
+    """Add a confirmed batch of grocery items and send one household update."""
+    if not items:
+        raise InvalidShoppingOperation("Add at least one item.")
+    locked_list = ShoppingList.objects.select_for_update().get(pk=shopping_list.pk)
+    _require_active_list(locked_list)
+    created_items = [
+        ShoppingItem(
+            shopping_list=locked_list,
+            text=item["text"],
+            quantity=item["quantity"],
+            description=item["description"],
+            added_by=user,
+        )
+        for item in items
+    ]
+    ShoppingItem.objects.bulk_create(created_items)
+    touch_list(locked_list.pk)
+    item_count = len(created_items)
+    _schedule_list_notification(
+        shopping_list=locked_list,
+        user=user,
+        body=(
+            f"{_actor_name(user)} added {item_count} item"
+            f"{'s' if item_count != 1 else ''} to {locked_list.name}."
+        ),
+        url=reverse("shopping:list_detail", args=[locked_list.pk]),
+    )
+    return created_items
 
 
 @transaction.atomic
@@ -331,10 +366,14 @@ def delete_item(*, item, user):
 
 
 @transaction.atomic
-def complete_list(*, shopping_list, user):
+def complete_list(*, shopping_list, user, confirm_static=False):
     locked_list = ShoppingList.objects.select_for_update().get(pk=shopping_list.pk)
     if locked_list.status != ShoppingList.Status.ACTIVE:
         raise InvalidShoppingOperation("This list has already been completed.")
+    if locked_list.static_list and not confirm_static:
+        raise InvalidShoppingOperation(
+            "Confirm that you want to complete this static list first."
+        )
     now = timezone.now()
     locked_list.status = ShoppingList.Status.COMPLETED
     locked_list.completed_by = user

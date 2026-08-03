@@ -10,7 +10,7 @@ from django.utils import timezone
 
 from pywebpush import WebPushException, webpush
 
-from .models import PushSubscription
+from .models import PushSubscription, ReleaseAnnouncement
 
 logger = logging.getLogger(__name__)
 
@@ -149,6 +149,49 @@ def send_scheduled_reminder_to_household(*, household_id, payload):
                 "Scheduled push delivery failed for subscription id=%s.", subscription.pk
             )
     return PushDeliveryResult(attempted=attempted, successful=successful)
+
+
+def announce_release(*, release_id, notes):
+    """Push one version announcement to each subscribed device, once per release."""
+    if not settings.PUSH_NOTIFICATIONS_ENABLED:
+        raise ValueError("Push notifications are not enabled.")
+
+    with transaction.atomic():
+        announcement, created = ReleaseAnnouncement.objects.select_for_update().get_or_create(
+            release_id=release_id,
+            defaults={"notes": "\n".join(notes)},
+        )
+        if not created and announcement.announced_at is not None:
+            return announcement, False
+        if not created:
+            announcement.notes = "\n".join(notes)
+
+        subscriptions = list(PushSubscription.objects.order_by("pk"))
+        announcement.announced_at = timezone.now()
+        announcement.attempted_subscription_count = len(subscriptions)
+        announcement.successful_delivery_count = 0
+        announcement.save(
+            update_fields=[
+                "notes",
+                "announced_at",
+                "attempted_subscription_count",
+                "successful_delivery_count",
+            ]
+        )
+
+    body = "What's new: " + "; ".join(notes)
+    payload = {
+        "title": "Home Sweet Home has a new version",
+        "body": body[:300],
+        "url": "/",
+        "tag": f"home-sweet-home-release-{release_id[:80]}",
+    }
+    successful = sum(send_push_notification(subscription, payload) for subscription in subscriptions)
+    ReleaseAnnouncement.objects.filter(pk=announcement.pk).update(
+        successful_delivery_count=successful
+    )
+    announcement.successful_delivery_count = successful
+    return announcement, True
 
 
 def schedule_household_notification(*, household_id, actor_user_id, payload):

@@ -1,8 +1,10 @@
 import json
 from datetime import timedelta
+from io import StringIO
 from unittest.mock import Mock, patch
 
 from django.contrib.auth import get_user_model
+from django.core.management import call_command
 from django.db import transaction
 from django.test import TestCase, override_settings
 from django.urls import reverse
@@ -12,8 +14,8 @@ from households.models import Household, HouseholdMembership
 from shopping.models import ShoppingList
 from shopping.services import add_item, complete_list
 
-from .models import PushSubscription
-from .services import send_push_notification
+from .models import PushSubscription, ReleaseAnnouncement
+from .services import announce_release, send_push_notification
 
 
 @override_settings(
@@ -38,6 +40,7 @@ class PushNotificationTests(TestCase):
             name="Albert",
             icon="albert-heijn",
             list_type=ShoppingList.ListType.ALBERT,
+            static_list=True,
             created_by=cls.alex,
         )
         cls.legacy_list = ShoppingList.objects.create(
@@ -200,6 +203,44 @@ class PushNotificationTests(TestCase):
         payload = json.loads(webpush.call_args.kwargs["data"])
         self.assertEqual(payload["body"], "alex completed Weekly groceries.")
         self.assertNotIn(str(self.legacy_list.pk), payload["body"])
+
+    @patch("push_notifications.services.webpush")
+    def test_release_announcement_reaches_all_subscribed_devices_once(self, webpush):
+        alex_subscription = self.create_subscription(
+            self.alex, "https://push.example.test/release-alex"
+        )
+        sam_subscription = self.create_subscription(
+            self.sam, "https://push.example.test/release-sam"
+        )
+
+        announcement, sent = announce_release(
+            release_id="1234567-release",
+            notes=["Bulk grocery additions", "Static lists are editable"],
+        )
+        repeated, repeated_sent = announce_release(
+            release_id="1234567-release",
+            notes=["Different notes must not be sent twice"],
+        )
+
+        self.assertTrue(sent)
+        self.assertFalse(repeated_sent)
+        self.assertEqual(repeated.pk, announcement.pk)
+        self.assertEqual(webpush.call_count, 2)
+        self.assertEqual(ReleaseAnnouncement.objects.count(), 1)
+        payload = json.loads(webpush.call_args.kwargs["data"])
+        self.assertEqual(payload["title"], "Home Sweet Home has a new version")
+        self.assertIn("Bulk grocery additions", payload["body"])
+        recipients = {
+            call.kwargs["subscription_info"]["endpoint"] for call in webpush.call_args_list
+        }
+        self.assertEqual(recipients, {alex_subscription.endpoint, sam_subscription.endpoint})
+
+    def test_prepared_release_notes_pass_the_deployment_gate(self):
+        output = StringIO()
+
+        call_command("check_release_notes", stdout=output)
+
+        self.assertIn("Release notes ready (3 item(s)).", output.getvalue())
 
     @patch("push_notifications.services.webpush")
     def test_device_receives_a_new_notification_only_after_ten_minutes_of_inactivity(

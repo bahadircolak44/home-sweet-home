@@ -49,6 +49,7 @@ class AiAssistantTests(TestCase):
             name="Albert",
             icon="albert-heijn",
             list_type=ShoppingList.ListType.ALBERT,
+            static_list=True,
             created_by=self.alex,
         )
         self.session = ChoreSession.objects.create(
@@ -72,14 +73,19 @@ class AiAssistantTests(TestCase):
                 {"command": command, "request_id": str(request_id or uuid.uuid4())},
             )
 
-    def grocery_call(self, list_id=None, item="Milk", quantity=1):
+    def grocery_call(self, list_id=None, item="Milk", quantity=1, items=None):
         return ToolCall(
-            "propose_add_grocery_item",
+            "propose_add_grocery_items",
             {
                 "shopping_list_id": list_id or self.shopping_list.pk,
-                "item_name": item,
-                "quantity": quantity,
-                "description": "",
+                "items": items
+                or [
+                    {
+                        "item_name": item,
+                        "quantity": quantity,
+                        "description": "",
+                    }
+                ],
             },
         )
 
@@ -121,6 +127,8 @@ class AiAssistantTests(TestCase):
 
         command = AssistantCommand.objects.get()
         self.assertEqual(response.json()["status"], "needs_confirmation")
+        self.assertEqual(response.json()["preview_items"], ["2× Milk"])
+        self.assertNotIn("transcript", response.json())
         self.assertEqual(command.status, AssistantCommand.Status.NEEDS_CONFIRMATION)
         self.assertEqual(command.action_type, AssistantCommand.ActionType.ADD_GROCERY_ITEM)
         self.assertFalse(ShoppingItem.objects.exists())
@@ -177,6 +185,42 @@ class AiAssistantTests(TestCase):
         self.assertEqual(second.json()["status"], "executed")
         self.assertEqual(ShoppingItem.objects.filter(text="Milk").count(), 1)
         self.assertEqual(ShoppingItem.objects.get(text="Milk").quantity, 3)
+
+    def test_grocery_batch_confirmation_adds_every_item_at_once(self):
+        command = self.needs_confirmation(
+            self.grocery_call(
+                items=[
+                    {"item_name": "Milk", "quantity": 2, "description": "Oat"},
+                    {"item_name": "Bread", "quantity": 1, "description": ""},
+                    {"item_name": "Eggs", "quantity": 12, "description": ""},
+                ]
+            )
+        )
+        response = self.client.post(reverse("ai_assistant:confirm", args=[command.pk]))
+
+        self.assertEqual(response.json()["status"], "executed")
+        self.assertEqual(response.json()["message"], "Added 3 items to Albert.")
+        self.assertEqual(
+            list(
+                ShoppingItem.objects.filter(shopping_list=self.shopping_list)
+                .order_by("text")
+                .values_list("text", "quantity", "description")
+            ),
+            [("Bread", 1, ""), ("Eggs", 12, ""), ("Milk", 2, "Oat")],
+        )
+
+    def test_grocery_batch_rejects_more_than_twenty_items(self):
+        response = self.call_text(
+            self.grocery_call(
+                items=[
+                    {"item_name": f"Item {number}", "quantity": 1, "description": ""}
+                    for number in range(21)
+                ]
+            )
+        )
+
+        self.assertEqual(response.status_code, 502)
+        self.assertFalse(ShoppingItem.objects.exists())
 
     def test_chore_confirmation_validates_assignee_and_creates_task(self):
         call = ToolCall(

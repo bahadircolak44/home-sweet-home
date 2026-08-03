@@ -44,6 +44,15 @@ jobs:
       - name: Install dependencies
         run: python -m pip install --requirement requirements.txt
 
+      - name: Check release notes
+        env:
+          DJANGO_SETTINGS_MODULE: home_sweet_home.settings.production
+          DATABASE_URL: postgresql://build:build@127.0.0.1:5432/build
+          SECRET_KEY: build-only-not-a-production-secret
+          ALLOWED_HOSTS: .run.app
+          CSRF_TRUSTED_ORIGINS: https://example.com
+        run: python manage.py check_release_notes
+
       - name: Collect production static files
         env:
           DJANGO_SETTINGS_MODULE: home_sweet_home.settings.production
@@ -127,6 +136,27 @@ jobs:
             GOOGLE_ALLOWED_EMAILS=projects/${{ vars.GCP_PROJECT_ID }}/secrets/home-sweet-home-google-allowed-emails/versions/latest
             GOOGLE_LEGACY_USER_MAP=projects/${{ vars.GCP_PROJECT_ID }}/secrets/home-sweet-home-google-legacy-user-map/versions/latest
             GOOGLE_TOKEN_ENCRYPTION_KEY=projects/${{ vars.GCP_PROJECT_ID }}/secrets/home-sweet-home-google-token-encryption-key/versions/latest
+
+      - name: Announce the deployed version
+        env:
+          DJANGO_SETTINGS_MODULE: home_sweet_home.settings.production
+          SECRET_KEY: release-announcement-only-not-a-production-secret
+          ALLOWED_HOSTS: .run.app
+          CSRF_TRUSTED_ORIGINS: https://example.com
+          PUSH_NOTIFICATIONS_ENABLED: "True"
+          VAPID_PUBLIC_KEY: ${{ vars.VAPID_PUBLIC_KEY }}
+          VAPID_SUBJECT: ${{ vars.VAPID_SUBJECT }}
+          RELEASE_ID: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+        run: |
+          DATABASE_URL="$(gcloud secrets versions access latest --secret=home-sweet-home-database-url-unpooled)"
+          echo "::add-mask::$DATABASE_URL"
+          export DATABASE_URL
+          VAPID_PRIVATE_KEY_PATH="$(mktemp "$RUNNER_TEMP/vapid-private-key.XXXXXX")"
+          export VAPID_PRIVATE_KEY_PATH
+          trap 'rm -f "$VAPID_PRIVATE_KEY_PATH"' EXIT
+          gcloud secrets versions access 1 --secret=home-sweet-home-vapid-private-key > "$VAPID_PRIVATE_KEY_PATH"
+          chmod 600 "$VAPID_PRIVATE_KEY_PATH"
+          python manage.py announce_release --release-id "$RELEASE_ID"
 
       - name: Add deployment URL to the job summary
         env:

@@ -34,8 +34,7 @@
         const stopButton = panel.querySelector("[data-ai-assistant-stop]");
         const status = panel.querySelector("[data-ai-assistant-status]");
         const preview = panel.querySelector("[data-ai-assistant-preview]");
-        const transcript = panel.querySelector("[data-ai-assistant-transcript]");
-        const summary = panel.querySelector("[data-ai-assistant-summary]");
+        const previewItems = panel.querySelector("[data-ai-assistant-preview-items]");
         const confirmButton = panel.querySelector("[data-ai-assistant-confirm]");
         const cancelButton = panel.querySelector("[data-ai-assistant-cancel]");
         const maxMilliseconds = Math.max(1, Number(panel.dataset.maxSeconds || 20)) * 1000;
@@ -67,8 +66,14 @@
         };
         const showPreview = (data) => {
             activeCommand = data;
-            transcript.textContent = data.transcript || "";
-            summary.textContent = data.summary || "";
+            previewItems.replaceChildren();
+            const items = Array.isArray(data.preview_items) ? data.preview_items : [];
+            items.forEach((item) => {
+                if (typeof item !== "string") return;
+                const listItem = document.createElement("li");
+                listItem.textContent = item;
+                previewItems.append(listItem);
+            });
             preview.hidden = false;
         };
         const showResult = (data) => {

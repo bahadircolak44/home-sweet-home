@@ -322,6 +322,15 @@ h2 {
     margin-bottom: 0.45rem;
 }
 
+.ai-assistant-preview__items {
+    margin: 0 0 0.8rem;
+    padding-left: 1.25rem;
+}
+
+.ai-assistant-preview__items:empty {
+    display: none;
+}
+
 .ai-assistant-preview p:last-of-type {
     margin-bottom: 0.8rem;
 }
@@ -797,6 +806,33 @@ h2 {
 .form-field textarea,
 .add-item-form textarea {
     resize: vertical;
+}
+
+.form-field .checkbox-label,
+.confirmation-card .checkbox-label {
+    display: inline-flex;
+    align-items: flex-start;
+    gap: 0.55rem;
+    color: var(--ink);
+    cursor: pointer;
+    font-weight: 650;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: 1rem;
+    min-height: 1rem;
+    margin: 0.2rem 0 0;
+}
+
+.form-help {
+    margin: 0.35rem 0 0;
+    color: var(--muted);
+    font-size: 0.85rem;
+}
+
+.confirmation-card__static-confirmation {
+    margin: 1rem 0 0;
+    text-align: left;
 }
 
 .form-field--quantity {

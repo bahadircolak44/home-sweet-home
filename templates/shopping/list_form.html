@@ -42,6 +42,14 @@
             </div>
             {% for error in form.icon.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
         </fieldset>
+        <div class="form-field">
+            <label class="checkbox-label" for="{{ form.static_list.id_for_label }}">
+                {{ form.static_list }}
+                <span>{{ form.static_list.label }}</span>
+            </label>
+            <p class="form-help">{{ form.static_list.help_text }}</p>
+            {% for error in form.static_list.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+        </div>
         <div class="form-actions">
             <button class="button button--primary" type="submit">{{ submit_label }}</button>
             <a class="button button--secondary" href="{% if shopping_list %}{% url 'shopping:list_detail' list_id=shopping_list.pk %}{% else %}{% url 'shopping:active_lists' %}{% endif %}">Cancel</a>

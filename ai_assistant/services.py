@@ -10,7 +10,7 @@ from django.utils import timezone
 from chores.forms import ChoreTaskForm
 from chores.services import active_sessions_for_user, create_task
 from shopping.forms import ShoppingItemForm
-from shopping.services import active_lists_for_user, add_item
+from shopping.services import active_lists_for_user, add_items
 from talk_later.forms import DiscussionTopicForm
 from talk_later.services import create_topic
 
@@ -122,26 +122,38 @@ def _validated_member(*, member_id, household, snapshot):
 
 
 def _validate_grocery_arguments(*, arguments, user, household, snapshot):
-    list_id, item_name, quantity, description = _require_arguments(
-        arguments, ["shopping_list_id", "item_name", "quantity", "description"]
-    )
-    if not all(isinstance(value, str) for value in (item_name, description)):
-        raise AssistantValidationError("The proposed grocery item is not valid.")
-    if not _is_integer(quantity) or not 1 <= quantity <= 99:
-        raise AssistantValidationError("The proposed grocery quantity is not valid.")
+    list_id, proposed_items = _require_arguments(arguments, ["shopping_list_id", "items"])
+    if not isinstance(proposed_items, list) or not 1 <= len(proposed_items) <= 20:
+        raise AssistantValidationError("The proposed grocery items are not valid.")
     shopping_list = _validated_active_list(
         list_id=list_id, user=user, household=household, snapshot=snapshot
     )
-    form = ShoppingItemForm(
-        {"text": item_name, "quantity": quantity, "description": description}
-    )
-    if not form.is_valid():
-        raise AssistantValidationError("The proposed grocery item is not valid.")
+    items = []
+    for proposed_item in proposed_items:
+        if not isinstance(proposed_item, dict):
+            raise AssistantValidationError("The proposed grocery item is not valid.")
+        item_name, quantity, description = _require_arguments(
+            proposed_item, ["item_name", "quantity", "description"]
+        )
+        if not all(isinstance(value, str) for value in (item_name, description)):
+            raise AssistantValidationError("The proposed grocery item is not valid.")
+        if not _is_integer(quantity) or not 1 <= quantity <= 99:
+            raise AssistantValidationError("The proposed grocery quantity is not valid.")
+        form = ShoppingItemForm(
+            {"text": item_name, "quantity": quantity, "description": description}
+        )
+        if not form.is_valid():
+            raise AssistantValidationError("The proposed grocery item is not valid.")
+        items.append(
+            {
+                "text": form.cleaned_data["text"],
+                "quantity": form.cleaned_data["quantity"],
+                "description": form.cleaned_data["description"],
+            }
+        )
     return {
         "shopping_list": shopping_list,
-        "text": form.cleaned_data["text"],
-        "quantity": form.cleaned_data["quantity"],
-        "description": form.cleaned_data["description"],
+        "items": items,
     }
 
 
@@ -239,7 +251,7 @@ def _unresolved_details(arguments, context):
     }.get(target_type, "requested target")
     if reason in {"unsupported_action", "not_an_addition", "multiple_actions"}:
         message = (
-            "This first version can only add one grocery item, chore task, or "
+            "I can add multiple grocery items to one list, or one chore task or "
             "Talk Later topic at a time."
         )
     elif reason == "target_not_found":
@@ -260,21 +272,22 @@ def _proposal_from_tool_call(*, tool_call, context, user, household):
         raise AssistantValidationError("The assistant response is not valid.")
     snapshot = context_snapshot(context)
     arguments = tool_call.arguments
-    if tool_call.name == "propose_add_grocery_item":
+    if tool_call.name == "propose_add_grocery_items":
         data = _validate_grocery_arguments(
             arguments=arguments, user=user, household=household, snapshot=snapshot
         )
-        summary = f"Add {data['quantity']}× {data['text']} to {data['shopping_list'].name}."
+        preview_items = [
+            f"{item['quantity']}× {item['text']}"
+            for item in data["items"]
+        ]
         return (
             AssistantCommand.ActionType.ADD_GROCERY_ITEM,
             {
                 "snapshot": snapshot,
                 "shopping_list_id": data["shopping_list"].pk,
                 "shopping_list_name": data["shopping_list"].name,
-                "text": data["text"],
-                "quantity": data["quantity"],
-                "description": data["description"],
-                "summary": summary,
+                "items": data["items"],
+                "preview_items": preview_items,
             },
         )
     if tool_call.name == "propose_add_chore_task":
@@ -296,7 +309,7 @@ def _proposal_from_tool_call(*, tool_call, context, user, household):
                 "title": data["title"],
                 "assignee_user_id": data["assignee"].pk if data["assignee"] else None,
                 "assignee_name": display_name(data["assignee"]) if data["assignee"] else "",
-                "summary": summary,
+                "preview_items": [summary],
             },
         )
     if tool_call.name == "propose_add_talk_later_topic":
@@ -316,7 +329,7 @@ def _proposal_from_tool_call(*, tool_call, context, user, household):
                 "scheduled_for": data["scheduled_for"].isoformat()
                 if data["scheduled_for"]
                 else None,
-                "summary": summary,
+                "preview_items": [summary],
             },
         )
     return _unresolved_details(arguments, context)
@@ -462,8 +475,7 @@ def interpretation_payload(command):
         return {
             "status": "needs_confirmation",
             "command_id": str(command.pk),
-            "transcript": command.transcript,
-            "summary": command.proposal.get("summary", ""),
+            "preview_items": command.proposal.get("preview_items", []),
             "expires_at": command.expires_at.isoformat(),
             "confirm_url": reverse("ai_assistant:confirm", args=[command.pk]),
             "cancel_url": reverse("ai_assistant:cancel", args=[command.pk]),
@@ -483,12 +495,22 @@ def interpretation_payload(command):
 def _stored_grocery(command):
     proposal = command.proposal
     snapshot = proposal.get("snapshot", {})
+    stored_items = proposal.get("items")
+    if isinstance(stored_items, list):
+        stored_items = [
+            {
+                "item_name": item.get("text"),
+                "quantity": item.get("quantity"),
+                "description": item.get("description"),
+            }
+            if isinstance(item, dict)
+            else item
+            for item in stored_items
+        ]
     return _validate_grocery_arguments(
         arguments={
             "shopping_list_id": proposal.get("shopping_list_id"),
-            "item_name": proposal.get("text"),
-            "quantity": proposal.get("quantity"),
-            "description": proposal.get("description"),
+            "items": stored_items,
         },
         user=command.user,
         household=command.household,
@@ -524,14 +546,16 @@ def _stored_topic(command):
 def _execute(command):
     if command.action_type == AssistantCommand.ActionType.ADD_GROCERY_ITEM:
         data = _stored_grocery(command)
-        add_item(
+        add_items(
             shopping_list=data["shopping_list"],
-            text=data["text"],
-            quantity=data["quantity"],
-            description=data["description"],
+            items=data["items"],
             user=command.user,
         )
-        label = f"Added {data['quantity']}× {data['text']} to {data['shopping_list'].name}."
+        item_count = len(data["items"])
+        label = (
+            f"Added {item_count} item{'s' if item_count != 1 else ''} "
+            f"to {data['shopping_list'].name}."
+        )
         return label, reverse("shopping:list_detail", args=[data["shopping_list"].pk])
     if command.action_type == AssistantCommand.ActionType.ADD_CHORE_TASK:
         data = _stored_chore(command)

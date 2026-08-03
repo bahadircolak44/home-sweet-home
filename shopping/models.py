@@ -1,20 +1,46 @@
+from datetime import timedelta
+
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxLengthValidator, MinValueValidator
 from django.db import models
 from django.db.models import Q
+from django.utils import timezone
 
 from households.models import Household
+
+
+PURCHASE_HISTORY_DAYS = 7
+
+
+def purchased_item_history_cutoff(now=None):
+    return (now or timezone.now()) - timedelta(days=PURCHASE_HISTORY_DAYS)
 
 
 class ShoppingListQuerySet(models.QuerySet):
     def available_to(self, user):
         return self.filter(household__memberships__user=user)
 
-    def with_item_counts(self):
+    def with_item_counts(self, *, recent_purchases_only=False):
+        item_filter = Q()
+        if recent_purchases_only:
+            item_filter = Q(items__is_purchased=False) | Q(
+                items__is_purchased=True,
+                items__purchased_at__gte=purchased_item_history_cutoff(),
+            )
         return self.annotate(
-            item_total=models.Count("items"),
-            purchased_total=models.Count("items", filter=Q(items__is_purchased=True)),
+            item_total=models.Count("items", filter=item_filter),
+            purchased_total=models.Count(
+                "items",
+                filter=(
+                    Q(
+                        items__is_purchased=True,
+                        items__purchased_at__gte=purchased_item_history_cutoff(),
+                    )
+                    if recent_purchases_only
+                    else Q(items__is_purchased=True)
+                ),
+            ),
             remaining_total=models.Count("items", filter=Q(items__is_purchased=False)),
         )
 
@@ -23,6 +49,10 @@ class ShoppingList(models.Model):
     class Status(models.TextChoices):
         ACTIVE = "ACTIVE", "Active"
         COMPLETED = "COMPLETED", "Completed"
+
+    class ListType(models.TextChoices):
+        ALBERT = "ALBERT", "Albert"
+        TURKISH_MARKET = "TURKISH_MARKET", "Türk Market"
 
     ICON_CHOICES = [
         ("🛒", "Shopping cart"),
@@ -47,6 +77,9 @@ class ShoppingList(models.Model):
     icon = models.CharField(max_length=16, choices=ICON_CHOICES, default="🛒")
     status = models.CharField(
         max_length=12, choices=Status.choices, default=Status.ACTIVE
+    )
+    list_type = models.CharField(
+        max_length=32, choices=ListType.choices, null=True, blank=True
     )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -79,6 +112,9 @@ class ShoppingList(models.Model):
             ),
         ]
         constraints = [
+            models.UniqueConstraint(
+                fields=["household", "list_type"], name="shopping_fixed_list_type_unique"
+            ),
             models.CheckConstraint(
                 condition=(
                     Q(
@@ -98,6 +134,10 @@ class ShoppingList(models.Model):
 
     def __str__(self):
         return f"{self.icon} {self.name}"
+
+    @property
+    def is_fixed(self):
+        return self.list_type in self.ListType.values
 
     @property
     def icon_asset(self):
@@ -128,8 +168,17 @@ class ShoppingList(models.Model):
         if hasattr(self, annotation_name):
             return getattr(self, annotation_name)
         queryset = self.items.all()
-        if purchased is not None:
+        if purchased is True:
             queryset = queryset.filter(is_purchased=purchased)
+            if self.status == self.Status.ACTIVE:
+                queryset = queryset.filter(
+                    purchased_at__gte=purchased_item_history_cutoff()
+                )
+        elif purchased is None and self.status == self.Status.ACTIVE:
+            queryset = queryset.filter(
+                Q(is_purchased=False)
+                | Q(is_purchased=True, purchased_at__gte=purchased_item_history_cutoff())
+            )
         return queryset.count()
 
     @property

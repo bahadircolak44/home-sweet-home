@@ -10,7 +10,7 @@ from households.services import get_household_for_user
 from talk_later.services import talk_later_summary_for_user
 
 from .forms import ShoppingItemForm, ShoppingListForm
-from .models import ShoppingList
+from .models import ShoppingList, purchased_item_history_cutoff
 from .services import (
     InvalidShoppingOperation,
     active_lists_for_user,
@@ -22,6 +22,7 @@ from .services import (
     delete_list,
     delete_item,
     grocery_summary_for_user,
+    historical_purchases_for_user,
     items_for_user,
     lists_for_user,
     toggle_item,
@@ -38,14 +39,18 @@ def _is_htmx(request):
 
 
 def _interaction_context(shopping_list, item_form=None):
-    refreshed_list = ShoppingList.objects.with_item_counts().get(pk=shopping_list.pk)
+    refreshed_list = ShoppingList.objects.with_item_counts(
+        recent_purchases_only=True
+    ).get(pk=shopping_list.pk)
     remaining_items = (
         refreshed_list.items.filter(is_purchased=False)
         .select_related("added_by", "purchased_by")
         .order_by("created_at")
     )
     purchased_items = (
-        refreshed_list.items.filter(is_purchased=True)
+        refreshed_list.items.filter(
+            is_purchased=True, purchased_at__gte=purchased_item_history_cutoff()
+        )
         .select_related("added_by", "purchased_by")
         .order_by("-purchased_at")
     )
@@ -96,6 +101,8 @@ def dashboard(request):
             "talk_later_summary": talk_later_summary,
             "push_notifications_enabled": settings.PUSH_NOTIFICATIONS_ENABLED,
             "vapid_public_key": settings.VAPID_PUBLIC_KEY,
+            "ai_assistant_enabled": settings.AI_ASSISTANT_ENABLED,
+            "ai_audio_max_seconds": settings.AI_AUDIO_MAX_SECONDS,
         },
     )
 
@@ -151,6 +158,9 @@ def list_edit(request, list_id):
         lists_for_user(request.user).filter(status=ShoppingList.Status.ACTIVE),
         pk=list_id,
     )
+    if shopping_list.is_fixed:
+        messages.info(request, "This fixed grocery list cannot be renamed.")
+        return redirect("shopping:list_detail", list_id=shopping_list.pk)
     form = ShoppingListForm(request.POST or None, instance=shopping_list)
     if request.method == "POST" and form.is_valid():
         shopping_list = update_list(
@@ -179,6 +189,9 @@ def list_delete(request, list_id):
         lists_for_user(request.user).filter(status=ShoppingList.Status.ACTIVE),
         pk=list_id,
     )
+    if shopping_list.is_fixed:
+        messages.info(request, "This fixed grocery list cannot be deleted.")
+        return redirect("shopping:list_detail", list_id=shopping_list.pk)
     if request.method == "POST":
         try:
             delete_list(shopping_list=shopping_list, user=request.user)
@@ -265,7 +278,7 @@ def item_toggle(request, item_id):
         toggle_item(item=item, user=request.user)
     except InvalidShoppingOperation as error:
         messages.error(request, str(error))
-        return redirect("shopping:history_detail", list_id=shopping_list.pk)
+        return redirect("shopping:history")
     if _is_htmx(request):
         return render(
             request,
@@ -291,12 +304,9 @@ def item_quantity_adjust(request, item_id):
         adjust_item_quantity(item=item, delta=delta, user=request.user)
     except InvalidShoppingOperation as error:
         messages.error(request, str(error))
-        destination = (
-            "shopping:history_detail"
-            if shopping_list.status == ShoppingList.Status.COMPLETED
-            else "shopping:list_detail"
-        )
-        return redirect(destination, list_id=shopping_list.pk)
+        if item.is_purchased and item.purchased_at < purchased_item_history_cutoff():
+            return redirect("shopping:history")
+        return redirect("shopping:list_detail", list_id=shopping_list.pk)
     if _is_htmx(request):
         return render(
             request,
@@ -310,10 +320,13 @@ def item_quantity_adjust(request, item_id):
 def item_edit(request, item_id):
     item = get_object_or_404(
         items_for_user(request.user).filter(
-            shopping_list__status=ShoppingList.Status.ACTIVE
+            shopping_list__status=ShoppingList.Status.ACTIVE,
         ),
         pk=item_id,
     )
+    if item.is_purchased and item.purchased_at < purchased_item_history_cutoff():
+        messages.error(request, "Items in shopping history are read-only.")
+        return redirect("shopping:history")
     form = ShoppingItemForm(request.POST or None, instance=item)
     if request.method == "POST" and form.is_valid():
         try:
@@ -326,7 +339,7 @@ def item_edit(request, item_id):
             )
         except InvalidShoppingOperation as error:
             messages.error(request, str(error))
-            return redirect("shopping:history_detail", list_id=item.shopping_list_id)
+            return redirect("shopping:history")
         messages.success(request, "Grocery item updated.")
         return redirect("shopping:list_detail", list_id=item.shopping_list_id)
     return render(
@@ -345,7 +358,7 @@ def item_delete(request, item_id):
         delete_item(item=item, user=request.user)
     except InvalidShoppingOperation as error:
         messages.error(request, str(error))
-        return redirect("shopping:history_detail", list_id=shopping_list.pk)
+        return redirect("shopping:history")
     if _is_htmx(request):
         return render(
             request,
@@ -362,7 +375,10 @@ def history(request):
         request,
         "shopping/history.html",
         {
-            "shopping_lists": completed_lists_for_user(request.user)
+            "completed_lists": completed_lists_for_user(request.user)
+            if household
+            else [],
+            "historical_purchases": historical_purchases_for_user(request.user)
             if household
             else [],
             "household": household,

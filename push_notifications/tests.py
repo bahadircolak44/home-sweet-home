@@ -34,6 +34,13 @@ class PushNotificationTests(TestCase):
         HouseholdMembership.objects.create(household=cls.home, user=cls.sam)
         HouseholdMembership.objects.create(household=cls.other_home, user=cls.outsider)
         cls.shopping_list = ShoppingList.objects.create(
+            household=cls.home,
+            name="Albert",
+            icon="albert-heijn",
+            list_type=ShoppingList.ListType.ALBERT,
+            created_by=cls.alex,
+        )
+        cls.legacy_list = ShoppingList.objects.create(
             household=cls.home, name="Weekly groceries", created_by=cls.alex
         )
 
@@ -188,11 +195,11 @@ class PushNotificationTests(TestCase):
         self.create_subscription(self.sam, "https://push.example.test/complete")
 
         with self.captureOnCommitCallbacks(execute=True):
-            complete_list(shopping_list=self.shopping_list, user=self.alex)
+            complete_list(shopping_list=self.legacy_list, user=self.alex)
 
         payload = json.loads(webpush.call_args.kwargs["data"])
         self.assertEqual(payload["body"], "alex completed Weekly groceries.")
-        self.assertNotIn(str(self.shopping_list.pk), payload["body"])
+        self.assertNotIn(str(self.legacy_list.pk), payload["body"])
 
     @patch("push_notifications.services.webpush")
     def test_device_receives_a_new_notification_only_after_ten_minutes_of_inactivity(

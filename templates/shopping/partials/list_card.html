@@ -14,7 +14,7 @@
         {% else %}
             <div class="list-card__stats">
                 <span><strong>{{ shopping_list.remaining_item_count }}</strong> remaining</span>
-                <span>{{ shopping_list.purchased_item_count }}/{{ shopping_list.total_item_count }} purchased</span>
+                <span>{{ shopping_list.purchased_item_count }}/{{ shopping_list.total_item_count }} purchased this week</span>
             </div>
             {% include "shopping/partials/progress.html" %}
             <p class="list-card__updated">Updated {{ shopping_list.updated_at|timesince }} ago</p>

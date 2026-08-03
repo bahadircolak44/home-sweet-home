@@ -14,9 +14,10 @@
     <link rel="icon" href="{% static 'icons/favicon.ico' %}" sizes="any">
     <link rel="icon" type="image/png" sizes="32x32" href="{% static 'icons/favicon-32.png' %}">
     <link rel="apple-touch-icon" sizes="180x180" href="{% static 'icons/apple-touch-icon.png' %}">
-    <link rel="stylesheet" href="{% static 'css/app.css' %}?v=15">
+    <link rel="stylesheet" href="{% static 'css/app.css' %}?v=16">
     <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.7/dist/htmx.min.js" defer></script>
     <script src="{% static 'js/app.js' %}?v=7" defer></script>
+    <script src="{% static 'js/ai-assistant.js' %}?v=1" defer></script>
 </head>
 <body data-service-worker-url="{% url 'service_worker' %}">
     {% if user.is_authenticated %}

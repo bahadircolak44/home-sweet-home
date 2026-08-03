@@ -20,6 +20,7 @@ urlpatterns = [
     path("groceries/", include("shopping.urls")),
     path("chores/", include("chores.urls")),
     path("talk-later/", include("talk_later.urls")),
+    path("assistant/", include("ai_assistant.urls")),
     path(
         "internal/talk-later/process-reminders/",
         talk_later_views.process_reminders,

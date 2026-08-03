@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load shopping_extras %}
 
 {% block title %}History · Home Sweet Home{% endblock %}
 
@@ -7,7 +8,7 @@
     <div>
         <p class="eyebrow">Household archive</p>
         <h1>Shopping History</h1>
-        <p>A read-only record of completed grocery trips.</p>
+        <p>Purchased items move here after one week.</p>
     </div>
 </div>
 {% include "shopping/partials/module_nav.html" %}
@@ -18,17 +19,49 @@
         <h2>No household connected</h2>
         <p>An administrator needs to add your account to a household before history is available.</p>
     </section>
-{% elif shopping_lists %}
-    <div class="card-grid">
-        {% for shopping_list in shopping_lists %}
-            {% include "shopping/partials/list_card.html" with history_card=True %}
-        {% endfor %}
-    </div>
+{% elif historical_purchases or completed_lists %}
+    {% if historical_purchases %}
+        <section class="history-items" aria-labelledby="past-purchases-title">
+            <div class="section-heading">
+                <h2 id="past-purchases-title">Past purchases</h2>
+                <span class="count-badge">{{ historical_purchases|length }}</span>
+            </div>
+            <p class="section-copy">Purchased more than one week ago.</p>
+            <div class="item-list">
+                {% for item in historical_purchases %}
+                    <article class="history-item history-item--purchased">
+                        <span class="check-control" aria-hidden="true">✓</span>
+                        <div class="history-item__content">
+                            <div class="history-item__title">
+                                <span class="quantity-badge">{{ item.quantity }}×</span>
+                                <p class="history-item__text">{{ item.text }}</p>
+                            </div>
+                            {% if item.description %}<p class="item-description">{{ item.description|external_urlize|linebreaksbr }}</p>{% endif %}
+                            <p class="history-item__meta">{{ item.shopping_list.name }} · Purchased {{ item.purchased_at|date:"j M Y, H:i" }} by {{ item.purchased_by.get_full_name|default:item.purchased_by.get_username }}</p>
+                        </div>
+                    </article>
+                {% endfor %}
+            </div>
+        </section>
+    {% endif %}
+    {% if completed_lists %}
+        <section class="history-items" aria-labelledby="completed-lists-title">
+            <div class="section-heading">
+                <h2 id="completed-lists-title">Completed lists</h2>
+                <span class="count-badge">{{ completed_lists|length }}</span>
+            </div>
+            <div class="card-grid">
+                {% for shopping_list in completed_lists %}
+                    {% include "shopping/partials/list_card.html" with history_card=True %}
+                {% endfor %}
+            </div>
+        </section>
+    {% endif %}
 {% else %}
     <section class="empty-state">
         <span class="empty-state__icon" aria-hidden="true">🕘</span>
-        <h2>No completed lists yet</h2>
-        <p>Lists will appear here after someone completes a shopping trip.</p>
+        <h2>No past purchases yet</h2>
+        <p>Purchased items appear here after one week.</p>
         <a class="button button--secondary" href="{% url 'shopping:active_lists' %}">View Active Lists</a>
     </section>
 {% endif %}

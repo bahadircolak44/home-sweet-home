@@ -13,7 +13,7 @@ Key constraints:
 - Existing Django users must be linked, never created automatically.
 - Existing user IDs, usernames, passwords, permissions, staff/superuser status, household memberships, and application data must remain unchanged.
 - One Calendar event belongs to the topic creator. Other connected household members are invited as attendees; duplicate events must not be written directly to their calendars.
-- The current Talk Later Web Push reminders must remain in place. Calendar default reminders must be disabled for these events.
+- The current Talk Later Web Push reminders must remain in place. Calendar defaults must be disabled, with one explicit popup reminder 30 minutes before each event.
 - All OAuth token handling and Calendar API calls stay on the server. Refresh tokens are encrypted before being stored in PostgreSQL.
 - No Firebase, service accounts, domain-wide delegation, new task infrastructure, new service worker, or public registration is required.
 
@@ -132,7 +132,7 @@ Grant the Cloud Run function runtime service account `roles/secretmanager.secret
   - Time zone: the Django configured time zone (`Europe/Amsterdam` today).
   - Description: notes when present, “Created by Home Sweet Home”, and an absolute HTTPS topic URL.
   - Private extended property identifying the local topic.
-  - Google default reminders disabled with `{"useDefault": false}`.
+  - Google defaults disabled, with one explicit popup reminder 30 minutes before the event: `{"useDefault": false, "overrides": [{"method": "popup", "minutes": 30}]}`.
   - No Google Meet and no arbitrary calendar selection.
 - Only other current household members with linked, verified Google emails are invited. Emails are normalized/deduplicated, the creator is excluded, and browser input never controls attendees.
 - When a household member connects later, future scheduled household topics are refreshed so that person can become an attendee. A missing connection is a non-blocking warning.
@@ -184,7 +184,7 @@ Then verify manually:
 - Calendar consent occurs on initial connection, not every later login.
 - A scheduled topic produces exactly one organizer event and a real invitation for each eligible household attendee; outsiders receive none.
 - Editing/rescheduling patches the same event, removing the schedule deletes it, marking done keeps it, and deletion cancels it before removing the local topic.
-- Google default reminders are disabled while existing Home Sweet Home Web Push reminders still work.
+- One 30-minute Google Calendar popup reminder is present, Calendar defaults are disabled, and existing Home Sweet Home Web Push reminders still work.
 - API failures leave local topics usable, and retry/reconnect work safely.
 - Disconnect preserves the Django user and household data.
 - No secrets, tokens, authorization codes, raw API responses, attendee lists, or raw errors appear in Git, templates, admin, or logs.

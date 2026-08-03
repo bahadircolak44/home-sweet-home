@@ -40,7 +40,7 @@
         {% if item.description %}<p class="item-description">{{ item.description|external_urlize|linebreaksbr }}</p>{% endif %}
         <span class="item-row__meta">
             {% if item.is_purchased %}
-                Purchased by {{ item.purchased_by.get_full_name|default:item.purchased_by.get_username }}
+                Purchased by {{ item.purchased_by.get_full_name|default:item.purchased_by.get_username }} · Last updated: <time datetime="{{ item.updated_at|date:'c' }}">{{ item.updated_at|date:"j M Y, H:i" }}</time>
             {% else %}
                 Added by {{ item.added_by.get_full_name|default:item.added_by.get_username }}
             {% endif %}

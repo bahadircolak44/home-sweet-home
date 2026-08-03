@@ -15,6 +15,57 @@
     </div>
 {% endif %}
 
+{% if ai_assistant_enabled and household %}
+<section
+    class="ai-assistant-panel"
+    aria-labelledby="ai-assistant-title"
+    data-ai-assistant
+    data-text-url="{% url 'ai_assistant:text_command' %}"
+    data-audio-url="{% url 'ai_assistant:audio_command' %}"
+    data-max-seconds="{{ ai_audio_max_seconds }}"
+>
+    <div class="ai-assistant-panel__heading">
+        <div>
+            <p class="eyebrow">Household helper</p>
+            <h2 id="ai-assistant-title">Quick Add with AI</h2>
+            <p>Type or say what you want to add.</p>
+        </div>
+    </div>
+    <form class="ai-assistant-form" data-ai-assistant-text-form>
+        {% csrf_token %}
+        <label class="sr-only" for="ai-assistant-command">Command</label>
+        <input
+            id="ai-assistant-command"
+            name="command"
+            type="text"
+            maxlength="1000"
+            autocomplete="off"
+            placeholder="Add two apples to the Albert list..."
+            data-ai-assistant-input
+        >
+        <button class="button button--primary" type="submit" data-ai-assistant-send>Send</button>
+    </form>
+    <div class="ai-assistant-panel__recording">
+        <button class="button button--secondary" type="button" data-ai-assistant-record>
+            <span aria-hidden="true">🎤</span> Start recording
+        </button>
+        <button class="text-button" type="button" data-ai-assistant-stop hidden>Stop recording</button>
+    </div>
+    <p class="ai-assistant-panel__examples">
+        Try: “Add milk to Albert” · “Assign Clean the kitchen to Pinar”
+    </p>
+    <div class="ai-assistant-status" data-ai-assistant-status aria-live="polite"></div>
+    <div class="ai-assistant-preview" data-ai-assistant-preview hidden>
+        <p><strong>I heard:</strong> <span data-ai-assistant-transcript></span></p>
+        <p><strong>I understood:</strong> <span data-ai-assistant-summary></span></p>
+        <div class="ai-assistant-preview__actions">
+            <button class="button button--primary" type="button" data-ai-assistant-confirm>Confirm and Add</button>
+            <button class="button button--secondary" type="button" data-ai-assistant-cancel>Cancel</button>
+        </div>
+    </div>
+</section>
+{% endif %}
+
 <section class="module-grid" aria-label="Household modules">
     <a class="module-card module-card--active" href="{% url 'shopping:active_lists' %}">
         <div class="module-card__top">

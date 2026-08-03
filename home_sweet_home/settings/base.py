@@ -71,6 +71,7 @@ INSTALLED_APPS = [
     "chores.apps.ChoresConfig",
     "talk_later.apps.TalkLaterConfig",
     "google_integration.apps.GoogleIntegrationConfig",
+    "ai_assistant.apps.AiAssistantConfig",
 ]
 
 MIDDLEWARE = [
@@ -146,6 +147,53 @@ LOGOUT_REDIRECT_URL = "login"
 URLIZE_ASSUME_HTTPS = True
 
 PASSWORD_LOGIN_ENABLED = env_bool("PASSWORD_LOGIN_ENABLED", True)
+AI_ASSISTANT_ENABLED = env_bool("AI_ASSISTANT_ENABLED", False)
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "").strip()
+OPENAI_COMMAND_MODEL = os.getenv("OPENAI_COMMAND_MODEL", "gpt-5-mini").strip()
+OPENAI_TRANSCRIPTION_MODEL = os.getenv(
+    "OPENAI_TRANSCRIPTION_MODEL", "gpt-4o-mini-transcribe"
+).strip()
+AI_COMMAND_TIMEOUT_SECONDS = int(os.getenv("AI_COMMAND_TIMEOUT_SECONDS", "20"))
+AI_COMMAND_PROPOSAL_TTL_SECONDS = int(
+    os.getenv("AI_COMMAND_PROPOSAL_TTL_SECONDS", "600")
+)
+AI_AUDIO_MAX_SECONDS = int(os.getenv("AI_AUDIO_MAX_SECONDS", "20"))
+AI_AUDIO_MAX_BYTES = int(os.getenv("AI_AUDIO_MAX_BYTES", "5242880"))
+AI_COMMANDS_PER_MINUTE = int(os.getenv("AI_COMMANDS_PER_MINUTE", "10"))
+
+_ai_positive_integer_settings = {
+    "AI_COMMAND_TIMEOUT_SECONDS": AI_COMMAND_TIMEOUT_SECONDS,
+    "AI_COMMAND_PROPOSAL_TTL_SECONDS": AI_COMMAND_PROPOSAL_TTL_SECONDS,
+    "AI_AUDIO_MAX_SECONDS": AI_AUDIO_MAX_SECONDS,
+    "AI_AUDIO_MAX_BYTES": AI_AUDIO_MAX_BYTES,
+    "AI_COMMANDS_PER_MINUTE": AI_COMMANDS_PER_MINUTE,
+}
+_invalid_ai_settings = [
+    name for name, value in _ai_positive_integer_settings.items() if value <= 0
+]
+if _invalid_ai_settings:
+    raise ImproperlyConfigured(
+        "These AI assistant settings must be positive integers: "
+        + ", ".join(_invalid_ai_settings)
+        + "."
+    )
+if AI_ASSISTANT_ENABLED:
+    _missing_ai_settings = [
+        name
+        for name, value in {
+            "OPENAI_API_KEY": OPENAI_API_KEY,
+            "OPENAI_COMMAND_MODEL": OPENAI_COMMAND_MODEL,
+            "OPENAI_TRANSCRIPTION_MODEL": OPENAI_TRANSCRIPTION_MODEL,
+        }.items()
+        if not value
+    ]
+    if _missing_ai_settings:
+        raise ImproperlyConfigured(
+            "The AI assistant is enabled but these settings are missing: "
+            + ", ".join(_missing_ai_settings)
+            + "."
+        )
+
 GOOGLE_OAUTH_ENABLED = env_bool("GOOGLE_OAUTH_ENABLED", False)
 GOOGLE_CALENDAR_ENABLED = env_bool("GOOGLE_CALENDAR_ENABLED", False)
 GOOGLE_OAUTH_CLIENT_ID = os.getenv("GOOGLE_OAUTH_CLIENT_ID", "").strip()

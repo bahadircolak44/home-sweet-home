@@ -113,7 +113,10 @@ def build_topic_event_body(topic, *, existing_attendees=None):
         "guestsCanModify": False,
         "guestsCanInviteOthers": False,
         "guestsCanSeeOtherGuests": True,
-        "reminders": {"useDefault": False},
+        "reminders": {
+            "useDefault": False,
+            "overrides": [{"method": "popup", "minutes": 30}],
+        },
         "extendedProperties": {"private": {"home_sweet_home_topic_id": str(topic.pk)}},
     }
 

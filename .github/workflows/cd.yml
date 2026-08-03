@@ -100,6 +100,14 @@ jobs:
             CSRF_TRUSTED_ORIGINS=https://${{ vars.GCP_REGION }}-${{ vars.GCP_PROJECT_ID }}.cloudfunctions.net
             SECURE_SSL_REDIRECT=True
             TIME_ZONE=Europe/Amsterdam
+            AI_ASSISTANT_ENABLED=True
+            OPENAI_COMMAND_MODEL=gpt-5-mini
+            OPENAI_TRANSCRIPTION_MODEL=gpt-4o-mini-transcribe
+            AI_COMMAND_TIMEOUT_SECONDS=20
+            AI_COMMAND_PROPOSAL_TTL_SECONDS=600
+            AI_AUDIO_MAX_SECONDS=20
+            AI_AUDIO_MAX_BYTES=5242880
+            AI_COMMANDS_PER_MINUTE=10
             PUSH_NOTIFICATIONS_ENABLED=True
             VAPID_PUBLIC_KEY=${{ vars.VAPID_PUBLIC_KEY }}
             VAPID_PRIVATE_KEY_PATH=/secrets/vapid/private_key.pem
@@ -111,6 +119,7 @@ jobs:
           secrets: |-
             DATABASE_URL=projects/${{ vars.GCP_PROJECT_ID }}/secrets/home-sweet-home-database-url/versions/latest
             SECRET_KEY=projects/${{ vars.GCP_PROJECT_ID }}/secrets/home-sweet-home-django-secret-key/versions/latest
+            OPENAI_API_KEY=projects/${{ vars.GCP_PROJECT_ID }}/secrets/home-sweet-home-openai-api-key/versions/latest
             /secrets/vapid/private_key.pem=projects/${{ vars.GCP_PROJECT_ID }}/secrets/home-sweet-home-vapid-private-key/versions/1
             GOOGLE_OAUTH_CLIENT_ID=projects/${{ vars.GCP_PROJECT_ID }}/secrets/home-sweet-home-google-oauth-client-id/versions/latest
             GOOGLE_OAUTH_CLIENT_SECRET=projects/${{ vars.GCP_PROJECT_ID }}/secrets/home-sweet-home-google-oauth-client-secret/versions/latest

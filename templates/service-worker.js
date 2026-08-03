@@ -1,8 +1,9 @@
 {% load static %}
-const CACHE_NAME = "home-sweet-home-static-v15";
+const CACHE_NAME = "home-sweet-home-static-v16";
 const STATIC_ASSETS = [
-    "{% static 'css/app.css' %}?v=15",
+    "{% static 'css/app.css' %}?v=16",
     "{% static 'js/app.js' %}?v=7",
+    "{% static 'js/ai-assistant.js' %}?v=1",
     "{% static 'manifest.webmanifest' %}",
     "{% static 'icons/favicon.ico' %}",
     "{% static 'icons/favicon-32.png' %}",

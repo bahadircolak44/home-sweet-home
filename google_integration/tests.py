@@ -255,7 +255,13 @@ class GoogleIntegrationTests(TestCase):
         self.assertEqual(insert_kwargs["calendarId"], "primary")
         self.assertEqual(insert_kwargs["sendUpdates"], "all")
         self.assertEqual(body["attendees"], [{"email": "sam@example.com"}])
-        self.assertEqual(body["reminders"], {"useDefault": False})
+        self.assertEqual(
+            body["reminders"],
+            {
+                "useDefault": False,
+                "overrides": [{"method": "popup", "minutes": 30}],
+            },
+        )
         self.assertFalse(body["guestsCanModify"])
         self.assertFalse(body["guestsCanInviteOthers"])
         self.assertTrue(body["guestsCanSeeOtherGuests"])

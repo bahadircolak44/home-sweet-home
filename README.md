@@ -1,6 +1,6 @@
 # Home Sweet Home
 
-Home Sweet Home is a private household web application with a central dashboard for household modules. Household members can maintain shared grocery lists, add quantities and optional product details, purchase items together, and review completed trips in history. They can also create shared chore sessions, assign tasks, complete them together, and review completed sessions in history. Talk Later stores shared topics to discuss, with an optional reminder at the right time.
+Home Sweet Home is a private household web application with a central dashboard for household modules. Each household starts with permanent Albert and Türk Market grocery lists and can create additional shared lists as needed. Members can add quantities and optional product details, purchase items together, and review purchases in history after one week. They can also create shared chore sessions, assign tasks, complete them together, and review completed sessions in history. Talk Later stores shared topics to discuss, with an optional reminder at the right time.
 
 Public registration is intentionally excluded from this MVP. Users and household memberships are initially managed through Django Admin.
 
@@ -18,11 +18,65 @@ Public registration is intentionally excluded from this MVP. Users and household
 
 The authenticated root route displays the Home Sweet Home dashboard. Grocery Lists is available under `/groceries/`, Household Chores is available under `/chores/`, and Talk Later is available under `/talk-later/`.
 
-Grocery items support a required quantity and an optional description. Descriptions may contain notes, brand preferences, or product links. Valid URLs are converted to safe external links while user-entered HTML remains escaped. Active items can be edited; completed lists remain read-only.
+Grocery items support a required quantity and an optional description. Descriptions may contain notes, brand preferences, or product links. Valid URLs are converted to safe external links while user-entered HTML remains escaped. Albert and Türk Market are fixed starter lists; additional lists can be created, edited, completed, and deleted. All active lists retain purchased items for seven days, then show them as read-only purchase history.
 
 Household Chores uses focused, shared sessions such as `This Week` or `Weekend Cleaning`. Household members can add custom tasks, optionally set a due date, assign them to current household members, mark them done or not done, and view incomplete tasks grouped by assignee. Completed tasks with the same title are combined into a shared count at the bottom of the active session, together with the household members who completed them. The Quick List stores reusable chores with an optional default assignee and can be used repeatedly. Completed sessions and their tasks are read-only in Chore History.
 
 Talk Later is intentionally small: add a topic, optionally choose a local date and time, and mark it done after discussing it. Scheduled topics send one Web Push reminder to every subscribed device for current household members, including the person who created it. Marking a topic done prevents a future reminder; reopening an already processed reminder does not send it again unless the topic is explicitly rescheduled. Notes stay in the app and are never included in the notification.
+
+## Quick Add with AI
+
+**Quick Add with AI** appears near the top of the authenticated dashboard only when `AI_ASSISTANT_ENABLED=True` and the user belongs to a household. It accepts a short typed command or a push-to-talk recording in Turkish or English, such as `Add milk to Albert` or `Albert listesine iki elma ekle`.
+
+The first version can propose only one of these additions:
+
+- One grocery item to an active Grocery List.
+- One chore task to an active Chore Session, optionally assigned to a current household member.
+- One Talk Later topic, optionally with a future scheduled date and time.
+
+Nothing is added while the command is interpreted. The user must review the transcript and deterministic summary, then select **Confirm and Add** in a separate POST. The assistant cannot delete, edit, complete, toggle, purchase, reschedule, or perform multiple operations. It uses normal authenticated HTTP requests: WebSockets and the Realtime API are deliberately not used in this MVP.
+
+The browser requests microphone permission only after the recording button is selected. It stops the clip after `AI_AUDIO_MAX_SECONDS`; the server-enforced limit is `AI_AUDIO_MAX_BYTES`. Production microphone access requires HTTPS; supported browsers treat `localhost` as secure for local development. Typing always remains available if recording is unsupported or permission is denied.
+
+### OpenAI setup and privacy
+
+Create an OpenAI API project, add billing, and create a server-side API key. API usage is billed separately from a ChatGPT subscription. Keep the key out of browser code, Git, logs, database rows, and Django Admin.
+
+Add these values to local `.env` after copying `.env.example`:
+
+```dotenv
+AI_ASSISTANT_ENABLED=True
+OPENAI_API_KEY=your-server-side-openai-api-key
+OPENAI_COMMAND_MODEL=gpt-5-mini
+OPENAI_TRANSCRIPTION_MODEL=gpt-4o-mini-transcribe
+AI_COMMAND_TIMEOUT_SECONDS=20
+AI_COMMAND_PROPOSAL_TTL_SECONDS=600
+AI_AUDIO_MAX_SECONDS=20
+AI_AUDIO_MAX_BYTES=5242880
+AI_COMMANDS_PER_MINUTE=10
+```
+
+The application fails startup with a clear configuration error if the feature is enabled without an API key or either model name. Interpretation uses the Responses API with four strict function schemas and a minimal authorized context: current time/timezone, active list and session IDs/names, and current household member IDs/display names. Uploaded audio is sent directly for transcription and is never stored. Raw OpenAI responses, keys, access tokens, emails, completed history, and audio bytes are never stored. Proposals are short-lived (ten minutes by default), confirmed under a database lock, and rate-limited to ten interpretations per user per minute by default.
+
+For manual privacy maintenance, remove old terminal records with:
+
+```bash
+docker compose exec web python manage.py purge_ai_assistant_commands --older-than-days 30
+```
+
+### Cloud Run Secret Manager setup
+
+Before deploying the included production workflow, create the `home-sweet-home-openai-api-key` Secret Manager secret, add the API key as its version, and grant the Cloud Run runtime service account access to that secret. The workflow maps it only to the `OPENAI_API_KEY` runtime environment variable; it must not be a GitHub variable, repository file, or build argument. The workflow enables the feature with the model and safety limits shown above. Set `AI_ASSISTANT_ENABLED=False` in the deployment configuration if the secret has not been created yet.
+
+### Quick Add troubleshooting
+
+- **Panel is missing:** Ensure `AI_ASSISTANT_ENABLED=True`, restart the app, and confirm the signed-in user has a household membership.
+- **Missing or invalid API key / insufficient credits / model unavailable:** Check the server-side key, billing/project status, model names, and Secret Manager access. Nothing is added on an API error.
+- **Microphone denied or unsupported:** Re-enable permission in the browser or device settings, use HTTPS in production, or type the command instead.
+- **Audio too large:** Record a shorter clip; file size is the server-enforced boundary.
+- **Command is ambiguous or target is missing:** Include the exact active Grocery List, Chore Session, or household member name.
+- **Proposal expired:** Submit the command again and explicitly confirm the new preview.
+- **Timeout or rate limit:** Wait briefly and retry. The assistant keeps Grocery Lists, Chores, Talk Later, push, and Calendar functionality independent of OpenAI availability.
 
 ## Google Sign-In and Google Calendar
 
@@ -103,7 +157,7 @@ Account settings shows the connected email and Calendar state. Disconnect requir
 
 When Google Calendar is enabled, saving a scheduled Talk Later topic creates one timed event in the creator’s primary Calendar. The creator remains the organizer even if another household member edits the topic. Other current household members with connected, verified Google email addresses are attendees and receive real invitations through `sendUpdates="all"`. The creator is never added as an attendee, and no organizer event is directly duplicated into attendee calendars.
 
-The event includes the topic title, optional notes, a Home Sweet Home marker, an absolute topic link, the Django time zone, and the configured duration. Google default reminders are disabled because Home Sweet Home Web Push remains responsible for the exact-time device reminder. The event does not create Google Meet links.
+The event includes the topic title, optional notes, a Home Sweet Home marker, an absolute topic link, the Django time zone, and the configured duration. It has one Google Calendar popup reminder 30 minutes before the event; Calendar defaults remain disabled. Home Sweet Home Web Push remains responsible for the exact-time device reminder. The event does not create Google Meet links.
 
 - Editing title, notes, time, or eligible attendees patches the same event and preserves attendee RSVP state.
 - Removing the schedule deletes the remote event with `sendUpdates="all"`.

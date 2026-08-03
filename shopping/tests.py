@@ -1,7 +1,10 @@
+from datetime import timedelta
+
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
+from django.utils import timezone
 from werkzeug.test import EnvironBuilder
 from werkzeug.wrappers import Request
 
@@ -45,7 +48,11 @@ class ShoppingFlowTests(TestCase):
 
     def setUp(self):
         self.shopping_list = ShoppingList.objects.create(
-            household=self.home, name="Weekend", icon="🛒", created_by=self.alex
+            household=self.home,
+            name="Albert",
+            icon="albert-heijn",
+            list_type=ShoppingList.ListType.ALBERT,
+            created_by=self.alex,
         )
 
     def test_unauthenticated_user_is_redirected_to_login(self):
@@ -82,7 +89,7 @@ class ShoppingFlowTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Weekend")
+        self.assertContains(response, "Albert")
 
     def test_user_outside_household_cannot_access_list(self):
         self.client.force_login(self.outsider)
@@ -143,29 +150,44 @@ class ShoppingFlowTests(TestCase):
         self.assertEqual(item.quantity, 1)
         self.assertEqual(item.added_by, self.alex)
 
-    def test_albert_heijn_and_jumbo_are_available_as_list_icons(self):
+    def test_household_has_two_fixed_grocery_lists(self):
         self.client.force_login(self.alex)
-        create_url = reverse("shopping:list_create")
+        response = self.client.get(reverse("shopping:active_lists"))
 
-        create_page = self.client.get(create_url)
-        self.assertContains(create_page, "Albert Heijn")
-        self.assertContains(create_page, "Jumbo")
-        self.assertContains(create_page, "icons/albert-heijn.svg")
-        self.assertContains(create_page, "icons/jumbo.png")
+        self.assertContains(response, "Albert")
+        self.assertContains(response, "Türk Market")
+        self.assertContains(response, "New List")
+        self.assertEqual(
+            ShoppingList.objects.filter(household=self.home, list_type__isnull=False).count(),
+            2,
+        )
+
+    def test_fixed_list_can_be_completed_when_needed(self):
+        self.client.force_login(self.alex)
 
         response = self.client.post(
-            create_url,
-            {"name": "Albert run", "icon": "albert-heijn"},
+            reverse("shopping:list_complete", args=[self.shopping_list.pk])
         )
 
-        shopping_list = ShoppingList.objects.get(name="Albert run")
         self.assertRedirects(
-            response, reverse("shopping:list_detail", args=[shopping_list.pk])
+            response, reverse("shopping:history_detail", args=[self.shopping_list.pk])
         )
-        self.assertEqual(shopping_list.icon, "albert-heijn")
+        self.shopping_list.refresh_from_db()
+        self.assertEqual(self.shopping_list.status, ShoppingList.Status.COMPLETED)
 
-        detail = self.client.get(reverse("shopping:list_detail", args=[shopping_list.pk]))
-        self.assertContains(detail, "icons/albert-heijn.svg")
+    def test_dynamic_list_can_be_created(self):
+        self.client.force_login(self.alex)
+
+        response = self.client.post(
+            reverse("shopping:list_create"),
+            {"name": "Weekend", "icon": "🛒"},
+        )
+
+        dynamic_list = ShoppingList.objects.get(household=self.home, name="Weekend")
+        self.assertIsNone(dynamic_list.list_type)
+        self.assertRedirects(
+            response, reverse("shopping:list_detail", args=[dynamic_list.pk])
+        )
 
     def test_quantity_rejects_zero_and_negative_values(self):
         self.client.force_login(self.alex)
@@ -318,6 +340,10 @@ class ShoppingFlowTests(TestCase):
         )
         self.assertContains(purchased_view, "Purchased")
         self.assertContains(purchased_view, "4×")
+        self.assertContains(purchased_view, "Last updated:")
+        self.assertContains(
+            purchased_view, timezone.localtime(item.updated_at).strftime("%H:%M")
+        )
 
         self.client.post(toggle_url)
         item.refresh_from_db()
@@ -325,43 +351,37 @@ class ShoppingFlowTests(TestCase):
         self.assertIsNone(item.purchased_by)
         self.assertIsNone(item.purchased_at)
 
-    def test_completed_list_is_read_only_and_appears_in_history(self):
-        item = ShoppingItem.objects.create(
+    def test_purchases_move_to_history_after_one_week(self):
+        old_item = ShoppingItem.objects.create(
             shopping_list=self.shopping_list,
-            text="Apples",
+            text="Old apples",
             quantity=3,
-            description="https://example.com/apples",
             added_by=self.alex,
+            is_purchased=True,
+            purchased_by=self.sam,
+            purchased_at=timezone.now() - timedelta(days=7, seconds=1),
+        )
+        recent_item = ShoppingItem.objects.create(
+            shopping_list=self.shopping_list,
+            text="Fresh apples",
+            quantity=2,
+            added_by=self.alex,
+            is_purchased=True,
+            purchased_by=self.sam,
+            purchased_at=timezone.now() - timedelta(days=6),
         )
         self.client.force_login(self.sam)
 
-        self.client.post(
-            reverse("shopping:list_complete", args=[self.shopping_list.pk])
+        detail = self.client.get(
+            reverse("shopping:list_detail", args=[self.shopping_list.pk])
         )
-        self.shopping_list.refresh_from_db()
-        self.assertEqual(self.shopping_list.status, ShoppingList.Status.COMPLETED)
-        self.assertEqual(self.shopping_list.completed_by, self.sam)
-        self.assertIsNotNone(self.shopping_list.completed_at)
-
-        add_response = self.client.post(
-            reverse("shopping:item_add", args=[self.shopping_list.pk]),
-            {"text": "Bananas", "quantity": 1},
-        )
-        quantity_response = self.client.post(
-            reverse("shopping:item_quantity_adjust", args=[item.pk]),
-            {"delta": 1},
-        )
-        edit_response = self.client.get(reverse("shopping:item_edit", args=[item.pk]))
         history = self.client.get(
-            reverse("shopping:history_detail", args=[self.shopping_list.pk])
+            reverse("shopping:history")
         )
 
-        self.assertEqual(add_response.status_code, 404)
-        self.assertRedirects(
-            quantity_response,
-            reverse("shopping:history_detail", args=[self.shopping_list.pk]),
-        )
-        self.assertEqual(edit_response.status_code, 404)
-        self.assertContains(history, "Apples")
-        self.assertContains(history, "3×")
-        self.assertContains(history, 'target="_blank"')
+        self.assertNotContains(detail, old_item.text)
+        self.assertContains(detail, recent_item.text)
+        self.assertContains(detail, "Purchased this week")
+        self.assertContains(history, old_item.text)
+        self.assertNotContains(history, recent_item.text)
+        self.assertContains(history, "Past purchases")
